@@ -93,6 +93,12 @@ export function initDatabase() {
     // Columna ya existe
   }
 
+  try {
+    db.exec(`ALTER TABLE series ADD COLUMN reading_direction TEXT`);
+  } catch (e) {
+    // Columna ya existe
+  }
+
   console.log('Base de datos inicializada');
 }
 

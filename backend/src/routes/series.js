@@ -59,8 +59,8 @@ router.get('/:id', async (req, res) => {
 
       // Guardar en la base de datos
       const insertSeries = db.prepare(`
-        INSERT OR REPLACE INTO series (id, name, original_name, author, artist, editorial_jp, editorial_es, total_volumes, released_volumes, is_complete, synopsis, url)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT OR REPLACE INTO series (id, name, original_name, author, artist, editorial_jp, editorial_es, reading_direction, total_volumes, released_volumes, is_complete, synopsis, url)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
 
       insertSeries.run(
@@ -71,6 +71,7 @@ router.get('/:id', async (req, res) => {
         scrapedData.artist,
         scrapedData.editorial_jp,
         scrapedData.editorial_es,
+        scrapedData.reading_direction,
         scrapedData.total_volumes,
         scrapedData.released_volumes || scrapedData.total_volumes,
         scrapedData.is_complete,
@@ -140,8 +141,8 @@ router.post('/:id/refresh', async (req, res) => {
 
     // Actualizar serie en la base de datos
     db.prepare(`
-      INSERT OR REPLACE INTO series (id, name, original_name, author, artist, editorial_jp, editorial_es, total_volumes, released_volumes, is_complete, synopsis, url, last_updated)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      INSERT OR REPLACE INTO series (id, name, original_name, author, artist, editorial_jp, editorial_es, reading_direction, total_volumes, released_volumes, is_complete, synopsis, url, last_updated)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `).run(
       scrapedData.id,
       scrapedData.name,
@@ -150,6 +151,7 @@ router.post('/:id/refresh', async (req, res) => {
       scrapedData.artist,
       scrapedData.editorial_jp,
       scrapedData.editorial_es,
+      scrapedData.reading_direction,
       scrapedData.total_volumes,
       scrapedData.released_volumes || scrapedData.total_volumes,
       scrapedData.is_complete,
@@ -214,8 +216,8 @@ router.post('/refresh-all', async (req, res) => {
 
         // Actualizar serie
         db.prepare(`
-          INSERT OR REPLACE INTO series (id, name, original_name, author, artist, editorial_jp, editorial_es, total_volumes, released_volumes, is_complete, synopsis, url, last_updated)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+          INSERT OR REPLACE INTO series (id, name, original_name, author, artist, editorial_jp, editorial_es, reading_direction, total_volumes, released_volumes, is_complete, synopsis, url, last_updated)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         `).run(
           scrapedData.id,
           scrapedData.name,
@@ -224,6 +226,7 @@ router.post('/refresh-all', async (req, res) => {
           scrapedData.artist,
           scrapedData.editorial_jp,
           scrapedData.editorial_es,
+          scrapedData.reading_direction,
           scrapedData.total_volumes,
           scrapedData.released_volumes || scrapedData.total_volumes,
           scrapedData.is_complete,

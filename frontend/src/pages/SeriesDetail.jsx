@@ -117,7 +117,9 @@ function SeriesDetail() {
 
     try {
       await markVolumesBulk(id, unpurchased)
-      setVolumes(prev => prev.map(v => ({ ...v, owned: 1 })))
+      setVolumes(prev => prev.map(v =>
+        v.is_released !== 0 ? { ...v, owned: 1 } : v
+      ))
     } catch (err) {
       alert('Error: ' + err.message)
     }
@@ -185,14 +187,9 @@ function SeriesDetail() {
           )}
 
           <div className="series-meta">
-            {series.author && <p><strong>Autor:</strong> {series.author}</p>}
-            {series.artist && series.artist !== series.author && (
-              <p><strong>Dibujante:</strong> {series.artist}</p>
-            )}
             {series.editorial_es && <p><strong>Editorial:</strong> {series.editorial_es}</p>}
-            {series.total_volumes > 0 && (
-              <p><strong>Tomos:</strong> {series.total_volumes}</p>
-            )}
+            {series.artist && <p><strong>Dibujo:</strong> {series.artist}</p>}
+            {series.reading_direction && <p><strong>Sentido de lectura:</strong> {series.reading_direction}</p>}
           </div>
 
           {series.is_complete ? (

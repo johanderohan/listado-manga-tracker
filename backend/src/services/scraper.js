@@ -44,6 +44,7 @@ export async function scrapeSeriesDetail(seriesId) {
     artist: '',
     editorial_jp: '',
     editorial_es: '',
+    reading_direction: '',
     total_volumes: 0,
     is_complete: 0,
     synopsis: '',
@@ -59,21 +60,33 @@ export async function scrapeSeriesDetail(seriesId) {
   // Buscar información en el contenido de la página
   const pageText = $('body').text();
 
-  // Extraer información básica usando patrones de texto
-  const originalMatch = pageText.match(/Título original[:\s]*([^\n]+)/i);
+  // Extraer título original del HTML
+  const htmlContent = $('body').html();
+  const originalMatch = htmlContent.match(/Título original:<\/b>\s*([^<]+)/i);
   if (originalMatch) series.original_name = originalMatch[1].trim();
 
   const authorMatch = pageText.match(/Guionista[:\s]*([^\n]+)/i);
   if (authorMatch) series.author = authorMatch[1].trim();
 
-  const artistMatch = pageText.match(/Dibujante[:\s]*([^\n]+)/i);
-  if (artistMatch) series.artist = artistMatch[1].trim();
+  // Extraer artista usando cheerio (buscar enlace después de "Dibujo:")
+  $('a[href*="autor.php"]').each((_, el) => {
+    const prev = $(el).parent().html();
+    if (prev && (prev.includes('Dibujo:') || prev.includes('Dibujante:'))) {
+      const match = prev.match(/(?:Dibujo|Dibujante):<\/b>\s*<a[^>]*>([^<]+)/i);
+      if (match) series.artist = match[1].trim();
+    }
+  });
 
-  const editorialJpMatch = pageText.match(/Editorial japonesa[:\s]*([^\n]+)/i);
-  if (editorialJpMatch) series.editorial_jp = editorialJpMatch[1].trim();
+  // Extraer editorial española usando cheerio
+  $('a[href*="editorial.php"]').each((_, el) => {
+    const text = $(el).text().trim();
+    if (text && !series.editorial_es) {
+      series.editorial_es = text;
+    }
+  });
 
-  const editorialEsMatch = pageText.match(/Editorial española[:\s]*([^\n]+)/i);
-  if (editorialEsMatch) series.editorial_es = editorialEsMatch[1].trim();
+  const readingMatch = pageText.match(/Sentido de lectura[:\s]*(Oriental|Occidental)/i);
+  if (readingMatch) series.reading_direction = readingMatch[1].trim();
 
   // Extraer sinopsis: buscar h2 con "Sinopsis de", luego extraer texto del td padre
   $('h2').each((_, el) => {

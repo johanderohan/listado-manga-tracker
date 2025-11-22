@@ -41,8 +41,8 @@ async function updateAllUserSeries() {
 
       // Actualizar serie
       db.prepare(`
-        INSERT OR REPLACE INTO series (id, name, original_name, author, artist, editorial_jp, editorial_es, total_volumes, released_volumes, is_complete, synopsis, url, last_updated)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        INSERT OR REPLACE INTO series (id, name, original_name, author, artist, editorial_jp, editorial_es, reading_direction, total_volumes, released_volumes, is_complete, synopsis, url, last_updated)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       `).run(
         scrapedData.id,
         scrapedData.name,
@@ -51,6 +51,7 @@ async function updateAllUserSeries() {
         scrapedData.artist,
         scrapedData.editorial_jp,
         scrapedData.editorial_es,
+        scrapedData.reading_direction,
         scrapedData.total_volumes,
         scrapedData.released_volumes || scrapedData.total_volumes,
         scrapedData.is_complete,
