@@ -4,7 +4,7 @@ import {
   getSeries,
   getSeriesVolumes,
   followSeries,
-  unfollowSeries,
+  deleteUserSeries,
   markVolumePurchased,
   unmarkVolumePurchased,
   markVolumesBulk,
@@ -12,8 +12,10 @@ import {
   removeFromWishlist,
   getUserSeries,
   getWishlist,
-  refreshSeries
+  refreshSeries,
+  discardSeries
 } from '../services/api'
+import DropdownMenu from '../components/DropdownMenu'
 import './SeriesDetail.css'
 
 function SeriesDetail() {
@@ -42,11 +44,12 @@ function SeriesDetail() {
 
       setSeries(seriesData)
       setVolumes(seriesData.volumes || [])
-      setIsFollowing(userSeries.some(s => s.id === parseInt(id)))
+      const userSerie = userSeries.find(s => s.id === parseInt(id))
+      setIsFollowing(userSerie && userSerie.status === 'following')
       setIsInWishlist(wishlist.some(w => w.id === parseInt(id)))
 
       // Si está siguiendo, cargar estado de tomos
-      if (userSeries.some(s => s.id === parseInt(id))) {
+      if (userSerie) {
         const userVolumes = await getSeriesVolumes(id)
         setVolumes(userVolumes)
       }
@@ -69,11 +72,22 @@ function SeriesDetail() {
     }
   }
 
-  async function handleUnfollow() {
-    if (!confirm('¿Eliminar esta serie de tu colección?')) return
+  async function handleDelete() {
+    if (!confirm('¿Eliminar esta serie de tu colección? Esta acción no se puede deshacer.')) return
     try {
-      await unfollowSeries(id)
+      await deleteUserSeries(id)
       setIsFollowing(false)
+      navigate('/mis-series')
+    } catch (err) {
+      alert('Error: ' + err.message)
+    }
+  }
+
+  async function handleDiscard() {
+    if (!confirm('¿Descartar esta serie? No aparecerá en tu lista principal.')) return
+    try {
+      await discardSeries(id)
+      setIsFollowing(false) // Dejará de ser visible como "following"
     } catch (err) {
       alert('Error: ' + err.message)
     }
@@ -152,6 +166,12 @@ function SeriesDetail() {
   // ¿Está al día? (tiene todos los publicados)
   const isUpToDate = ownedCount >= releasedCount && releasedCount > 0
 
+  const menuOptions = [
+    { label: 'Marcar todos', action: handleMarkAllPurchased },
+    { label: 'Descartar', action: handleDiscard },
+    { label: 'Eliminar', action: handleDelete, isDanger: true }
+  ]
+
   if (loading) {
     return <div className="loading">Cargando...</div>
   }
@@ -180,6 +200,11 @@ function SeriesDetail() {
       </div>
 
       <div className="series-header card">
+        {isFollowing && (
+          <div className="series-menu">
+            <DropdownMenu options={menuOptions} />
+          </div>
+        )}
         <div className="series-info">
           <h2>{series.name}</h2>
           {series.original_name && (
@@ -243,16 +268,6 @@ function SeriesDetail() {
                       <div className="progress-bar-fill secondary" style={{ width: `${totalProgress}%` }} />
                     </div>
                   </>
-                )}
-              </div>
-              <div className="action-buttons">
-                <button className="btn-danger" onClick={handleUnfollow}>
-                  Dejar de seguir
-                </button>
-                {ownedCount < releasedCount && (
-                  <button className="btn-success" onClick={handleMarkAllPurchased}>
-                    Marcar todos
-                  </button>
                 )}
               </div>
             </>

@@ -29,9 +29,14 @@ export const refreshSeries = (seriesId) => fetchJson(`/series/${seriesId}/refres
 export const refreshAllSeries = () => fetchJson('/series/refresh-all', { method: 'POST' });
 
 // User Series
-export const getUserSeries = () => fetchJson('/user/series');
+export const getUserSeries = (status = 'following') => {
+  const queryString = new URLSearchParams({ status }).toString();
+  return fetchJson(`/user/series?${queryString}`);
+};
 export const followSeries = (seriesId) => fetchJson(`/user/series/${seriesId}`, { method: 'POST' });
-export const unfollowSeries = (seriesId) => fetchJson(`/user/series/${seriesId}`, { method: 'DELETE' });
+export const deleteUserSeries = (seriesId) => fetchJson(`/user/series/${seriesId}`, { method: 'DELETE' });
+export const discardSeries = (seriesId) => fetchJson(`/user/series/${seriesId}/discard`, { method: 'POST' });
+export const refollowSeries = (seriesId) => fetchJson(`/user/series/${seriesId}/follow`, { method: 'POST' });
 
 // Volumes
 export const getPendingVolumes = () => fetchJson('/user/pending');

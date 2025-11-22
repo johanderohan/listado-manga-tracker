@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { getUserSeries, unfollowSeries, refreshAllSeries } from '../services/api'
+import { getUserSeries, refreshAllSeries } from '../services/api'
 import './MySeries.css'
 
 function MySeries() {
-  const [series, setSeries] = useState([])
+  const [allSeries, setAllSeries] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [filter, setFilter] = useState('in-progress')
@@ -17,8 +17,9 @@ function MySeries() {
   async function loadSeries() {
     try {
       setLoading(true)
-      const data = await getUserSeries()
-      setSeries(data)
+      const following = await getUserSeries('following')
+      const discarded = await getUserSeries('discarded')
+      setAllSeries([...following, ...discarded])
     } catch (err) {
       setError(err.message)
     } finally {
@@ -26,18 +27,8 @@ function MySeries() {
     }
   }
 
-  async function handleUnfollow(seriesId) {
-    if (!confirm('¿Eliminar esta serie de tu colección?')) return
-    try {
-      await unfollowSeries(seriesId)
-      setSeries(prev => prev.filter(s => s.id !== seriesId))
-    } catch (err) {
-      alert('Error: ' + err.message)
-    }
-  }
-
   async function handleRefreshAll() {
-    if (series.length === 0) return
+    if (allSeries.length === 0) return
     try {
       setRefreshing(true)
       const result = await refreshAllSeries()
@@ -51,12 +42,19 @@ function MySeries() {
     }
   }
 
-  const filteredSeries = series.filter(s => {
-    if (filter === 'complete') return s.progress === 100
-    if (filter === 'in-progress') return s.progress > 0 && s.progress < 100
-    if (filter === 'not-started') return s.progress === 0
+  const filteredSeries = allSeries.filter(s => {
+    if (filter === 'in-progress') return s.status === 'following' && s.progress < 100
+    if (filter === 'all') return s.status === 'following'
+    if (filter === 'discarded') return s.status === 'discarded'
     return true
   })
+
+  const counts = {
+    inProgress: allSeries.filter(s => s.status === 'following' && s.progress < 100).length,
+    all: allSeries.filter(s => s.status === 'following').length,
+    discarded: allSeries.filter(s => s.status === 'discarded').length
+  }
+
 
   if (loading) {
     return <div className="loading">Cargando...</div>
@@ -71,30 +69,24 @@ function MySeries() {
       <div className="page-header">
         <div className="filter-buttons">
           <button
-            className={filter === 'all' ? 'btn-primary' : 'btn-secondary'}
-            onClick={() => setFilter('all')}
-          >
-            Todas ({series.length})
-          </button>
-          <button
             className={filter === 'in-progress' ? 'btn-primary' : 'btn-secondary'}
             onClick={() => setFilter('in-progress')}
           >
-            En progreso
+            En progreso ({counts.inProgress})
           </button>
           <button
-            className={filter === 'complete' ? 'btn-primary' : 'btn-secondary'}
-            onClick={() => setFilter('complete')}
+            className={filter === 'all' ? 'btn-primary' : 'btn-secondary'}
+            onClick={() => setFilter('all')}
           >
-            Completas
+            Todas ({counts.all})
           </button>
           <button
-            className={filter === 'not-started' ? 'btn-primary' : 'btn-secondary'}
-            onClick={() => setFilter('not-started')}
+            className={filter === 'discarded' ? 'btn-primary' : 'btn-secondary'}
+            onClick={() => setFilter('discarded')}
           >
-            Sin empezar
+            Descartadas ({counts.discarded})
           </button>
-          {series.length > 0 && (
+          {filteredSeries.length > 0 && (
             <button
               className="btn-secondary refresh-all-btn"
               onClick={handleRefreshAll}
@@ -109,7 +101,7 @@ function MySeries() {
       {filteredSeries.length === 0 ? (
         <div className="card">
           <p className="text-muted">
-            {series.length === 0
+            {allSeries.length === 0
               ? 'No sigues ninguna serie. '
               : 'No hay series con este filtro. '}
             <Link to="/buscar">Buscar series</Link>
@@ -144,12 +136,6 @@ function MySeries() {
                   )}
                 </div>
               </Link>
-              <button
-                className="btn-danger btn-sm unfollow-btn"
-                onClick={() => handleUnfollow(s.id)}
-              >
-                Eliminar
-              </button>
             </div>
           ))}
         </div>

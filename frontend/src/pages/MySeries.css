@@ -33,6 +33,8 @@
 .series-card {
   position: relative;
   transition: transform 0.2s, box-shadow 0.2s;
+  display: flex;
+  flex-direction: column;
 }
 
 .series-card:hover {
@@ -86,18 +88,6 @@
   color: var(--text-muted);
 }
 
-.unfollow-btn {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.series-card:hover .unfollow-btn {
-  opacity: 1;
-}
-
 @media (max-width: 600px) {
   .page-header {
     flex-direction: column;
@@ -111,9 +101,5 @@
   .filter-buttons button {
     flex: 1;
     min-width: auto;
-  }
-
-  .unfollow-btn {
-    opacity: 1;
   }
 }

@@ -8,6 +8,8 @@ const router = Router();
 // Obtener todas las series que sigue el usuario con progreso
 router.get('/series', (req, res) => {
   try {
+    const { status = 'following' } = req.query;
+
     const series = db.prepare(`
       SELECT
         s.*,
@@ -24,9 +26,10 @@ router.get('/series', (req, res) => {
       FROM user_series us
       JOIN series s ON s.id = us.series_id
       LEFT JOIN user_volumes uv ON uv.series_id = s.id
+      WHERE us.status = ?
       GROUP BY s.id
       ORDER BY s.name ASC
-    `).all();
+    `).all(status);
 
     res.json(series);
   } catch (error) {
@@ -62,6 +65,40 @@ router.delete('/series/:seriesId', (req, res) => {
   }
 });
 
+// Descartar una serie
+router.post('/series/:seriesId/discard', (req, res) => {
+  try {
+    const { seriesId } = req.params;
+
+    db.prepare(`
+      UPDATE user_series
+      SET status = 'discarded'
+      WHERE series_id = ?
+    `).run(seriesId);
+
+    res.json({ message: 'Serie movida a descartadas' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Volver a seguir una serie (desde descartadas)
+router.post('/series/:seriesId/follow', (req, res) => {
+  try {
+    const { seriesId } = req.params;
+
+    db.prepare(`
+      UPDATE user_series
+      SET status = 'following'
+      WHERE series_id = ?
+    `).run(seriesId);
+
+    res.json({ message: 'Serie movida a siguiendo' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // === TOMOS COMPRADOS ===
 
 // Obtener próximos tomos pendientes de comprar (solo publicados)
@@ -77,7 +114,7 @@ router.get('/pending', (req, res) => {
       JOIN series s ON s.id = v.series_id
       JOIN user_series us ON us.series_id = s.id
       LEFT JOIN user_volumes uv ON uv.series_id = v.series_id AND uv.volume_number = v.number
-      WHERE uv.id IS NULL AND v.is_released = 1
+      WHERE us.status = 'following' AND uv.id IS NULL AND v.is_released = 1
       ORDER BY s.name, v.number
     `).all();
 

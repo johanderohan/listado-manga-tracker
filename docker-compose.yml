@@ -9,7 +9,7 @@ services:
       - "4001:3001"
     volumes:
       - ./backend/src:/app/src
-      - backend_data:/app/data
+      - ./data:/app/data
     environment:
       - NODE_ENV=development
       - PORT=3001

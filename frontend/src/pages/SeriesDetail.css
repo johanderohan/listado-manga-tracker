@@ -29,6 +29,13 @@
   justify-content: space-between;
   gap: 2rem;
   flex-wrap: wrap;
+  position: relative;
+}
+
+.series-menu {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
 }
 
 .series-info h1 {
@@ -208,6 +215,12 @@
   display: inline-block;
   margin-top: 1rem;
   color: var(--primary);
+}
+
+@media (min-width: 601px) {
+  .progress-section {
+    margin-top: 40px;
+  }
 }
 
 @media (max-width: 600px) {
