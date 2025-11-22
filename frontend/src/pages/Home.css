@@ -33,72 +33,74 @@
   font-size: 0.875rem;
 }
 
-.pending-list {
-  display: flex;
-  flex-direction: column;
+.pending-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 1rem;
 }
 
-.pending-series {
-  padding: 1rem 1.5rem;
-}
-
-.pending-header {
+.pending-card {
+  padding: 0.75rem;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
-  margin-bottom: 1rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--surface-light);
+  text-align: center;
+  transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.series-title {
-  font-size: 1.125rem;
+.pending-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.pending-card-cover {
+  width: 100%;
+  max-width: 120px;
+  height: auto;
+  border-radius: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.pending-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 100%;
+}
+
+.pending-card-series {
+  font-size: 0.85rem;
   font-weight: 600;
   color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.pending-volumes {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+.pending-card-series:hover {
+  color: var(--primary);
 }
 
-.pending-volume {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem;
-  background: var(--surface-light);
-  border-radius: 0.5rem;
-}
-
-.volume-info {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.volume-number {
-  font-weight: 500;
-}
-
-.volume-price {
+.pending-card-number {
+  font-size: 0.9rem;
   color: var(--text-muted);
-  font-size: 0.875rem;
+}
+
+.pending-card-price {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--primary);
+  margin: 0.25rem 0;
+}
+
+.pending-card-btn {
+  margin-top: 0.5rem;
+  width: 100%;
 }
 
 .btn-sm {
   padding: 0.35rem 0.75rem;
   font-size: 0.8rem;
-}
-
-.see-more {
-  display: block;
-  text-align: center;
-  padding: 0.5rem;
-  color: var(--primary);
-  font-size: 0.875rem;
 }
 
 .error {

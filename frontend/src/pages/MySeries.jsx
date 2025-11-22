@@ -70,7 +70,6 @@ function MySeries() {
     <div className="my-series">
       <div className="page-header">
         <div className="header-top">
-          <h1>Mis Series</h1>
           {series.length > 0 && (
             <button
               className="btn-secondary refresh-all-btn"
@@ -123,8 +122,12 @@ function MySeries() {
           {filteredSeries.map(s => (
             <div key={s.id} className="card series-card">
               <Link to={`/series/${s.id}`} className="series-card-content">
-                <h3 className="series-name">{s.name}</h3>
-                <div className="series-progress">
+                {s.cover_url && (
+                  <img src={s.cover_url} alt={s.name} className="series-cover" />
+                )}
+                <div className="series-info">
+                  <h3 className="series-name">{s.name}</h3>
+                  <div className="series-progress">
                   <div className="progress-info">
                     <span>{s.owned_volumes || 0} / {s.total_volumes || '?'}</span>
                     <span>{s.progress || 0}%</span>
@@ -136,11 +139,12 @@ function MySeries() {
                     />
                   </div>
                 </div>
-                {s.is_complete ? (
-                  <span className="badge badge-success">Serie completa</span>
-                ) : (
-                  <span className="badge badge-warning">En publicación</span>
-                )}
+                  {s.is_complete ? (
+                    <span className="badge badge-success">Serie completa</span>
+                  ) : (
+                    <span className="badge badge-warning">En publicación</span>
+                  )}
+                </div>
               </Link>
               <button
                 className="btn-danger btn-sm unfollow-btn"

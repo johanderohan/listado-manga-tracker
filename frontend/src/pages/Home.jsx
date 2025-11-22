@@ -46,6 +46,7 @@ function Home() {
       acc[key] = {
         seriesId: vol.series_id,
         seriesName: vol.series_name,
+        seriesCover: vol.series_cover,
         volumes: []
       }
     }
@@ -63,8 +64,6 @@ function Home() {
 
   return (
     <div className="home">
-      <h1 className="mb-3">Manga Tracker</h1>
-
       {stats && (
         <div className="stats-grid mb-3">
           <div className="stat-card">
@@ -94,35 +93,24 @@ function Home() {
             <p className="text-muted">No hay tomos pendientes. <Link to="/buscar">Busca series para empezar</Link></p>
           </div>
         ) : (
-          <div className="pending-list">
-            {Object.values(groupedBySeries).map(group => (
-              <div key={group.seriesId} className="card pending-series">
-                <div className="pending-header">
-                  <Link to={`/series/${group.seriesId}`} className="series-title">
-                    {group.seriesName}
+          <div className="pending-grid">
+            {pending.map(vol => (
+              <div key={`${vol.series_id}-${vol.number}`} className="card pending-card">
+                {vol.cover_url && (
+                  <img src={vol.cover_url} alt={`${vol.series_name} Tomo ${vol.number}`} className="pending-card-cover" />
+                )}
+                <div className="pending-card-info">
+                  <Link to={`/series/${vol.series_id}`} className="pending-card-series">
+                    {vol.series_name}
                   </Link>
-                  <span className="badge badge-info">{group.volumes.length} pendientes</span>
-                </div>
-                <div className="pending-volumes">
-                  {group.volumes.slice(0, 5).map(vol => (
-                    <div key={vol.number} className="pending-volume">
-                      <div className="volume-info">
-                        <span className="volume-number">Tomo {vol.number}</span>
-                        {vol.price > 0 && <span className="volume-price">{vol.price.toFixed(2)}€</span>}
-                      </div>
-                      <button
-                        className="btn-success btn-sm"
-                        onClick={() => handleMarkPurchased(vol.series_id, vol.number)}
-                      >
-                        Comprado
-                      </button>
-                    </div>
-                  ))}
-                  {group.volumes.length > 5 && (
-                    <Link to={`/series/${group.seriesId}`} className="see-more">
-                      Ver {group.volumes.length - 5} más...
-                    </Link>
-                  )}
+                  <span className="pending-card-number">Tomo {vol.number}</span>
+                  {vol.price > 0 && <span className="pending-card-price">{vol.price.toFixed(2)}€</span>}
+                  <button
+                    className="btn-success btn-sm pending-card-btn"
+                    onClick={() => handleMarkPurchased(vol.series_id, vol.number)}
+                  >
+                    Comprado
+                  </button>
                 </div>
               </div>
             ))}

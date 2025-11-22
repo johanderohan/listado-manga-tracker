@@ -19,7 +19,8 @@ router.get('/series', (req, res) => {
           WHEN s.total_volumes > 0
           THEN ROUND(COUNT(DISTINCT uv.volume_number) * 100.0 / s.total_volumes, 1)
           ELSE 0
-        END as progress
+        END as progress,
+        (SELECT cover_url FROM volumes WHERE series_id = s.id AND number = 1 LIMIT 1) as cover_url
       FROM user_series us
       JOIN series s ON s.id = us.series_id
       LEFT JOIN user_volumes uv ON uv.series_id = s.id
@@ -70,7 +71,8 @@ router.get('/pending', (req, res) => {
       SELECT
         v.*,
         s.name as series_name,
-        s.editorial_es
+        s.editorial_es,
+        (SELECT cover_url FROM volumes WHERE series_id = s.id AND number = 1 LIMIT 1) as series_cover
       FROM volumes v
       JOIN series s ON s.id = v.series_id
       JOIN user_series us ON us.series_id = s.id

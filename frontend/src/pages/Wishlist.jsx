@@ -54,7 +54,6 @@ function Wishlist() {
 
   return (
     <div className="wishlist-page">
-      <h1 className="mb-3">Wishlist</h1>
 
       {wishlist.length === 0 ? (
         <div className="card empty-state">

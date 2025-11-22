@@ -43,7 +43,6 @@ function Search() {
 
   return (
     <div className="search-page">
-      <h1 className="mb-3">Buscar Series</h1>
 
       <form onSubmit={handleSearch} className="search-form">
         <input

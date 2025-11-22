@@ -179,7 +179,7 @@ function SeriesDetail() {
 
       <div className="series-header card">
         <div className="series-info">
-          <h1>{series.name}</h1>
+          <h2>{series.name}</h2>
           {series.original_name && (
             <p className="original-name text-muted">{series.original_name}</p>
           )}
