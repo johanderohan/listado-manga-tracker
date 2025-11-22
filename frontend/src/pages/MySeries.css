@@ -9,15 +9,9 @@
   margin-bottom: 1.5rem;
 }
 
-.header-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-}
-
 .refresh-all-btn {
   white-space: nowrap;
+  margin-left: auto;
 }
 
 .refresh-all-btn:disabled {

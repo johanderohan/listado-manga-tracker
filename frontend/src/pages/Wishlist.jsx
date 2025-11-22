@@ -69,22 +69,21 @@ function Wishlist() {
         <div className="wishlist-grid">
           {wishlist.map(series => (
             <div key={series.id} className="card wishlist-card">
-              <Link to={`/series/${series.id}`} className="wishlist-content">
-                <h3>{series.name}</h3>
-                {series.editorial_es && (
-                  <span className="text-muted text-sm">{series.editorial_es}</span>
+              <Link to={`/series/${series.id}`} className="wishlist-link">
+                {series.cover_url && (
+                  <img src={series.cover_url} alt={series.name} className="wishlist-cover" />
                 )}
-                {series.total_volumes > 0 && (
-                  <span className="text-sm">{series.total_volumes} tomos</span>
-                )}
-                {series.is_complete ? (
-                  <span className="badge badge-success">Completa</span>
-                ) : (
-                  <span className="badge badge-warning">En publicación</span>
-                )}
-                {series.notes && (
-                  <p className="wishlist-notes text-muted text-sm">{series.notes}</p>
-                )}
+                <div className="wishlist-content">
+                  <h3>{series.name}</h3>
+                  {series.total_volumes > 0 && (
+                    <span className="text-sm text-muted">{series.total_volumes} tomos</span>
+                  )}
+                  {series.is_complete ? (
+                    <span className="badge badge-success">Completa</span>
+                  ) : (
+                    <span className="badge badge-warning">En publicación</span>
+                  )}
+                </div>
               </Link>
               <div className="wishlist-actions">
                 <button

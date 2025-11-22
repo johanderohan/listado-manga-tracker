@@ -7,7 +7,7 @@ function MySeries() {
   const [series, setSeries] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [filter, setFilter] = useState('all')
+  const [filter, setFilter] = useState('in-progress')
   const [refreshing, setRefreshing] = useState(false)
 
   useEffect(() => {
@@ -69,17 +69,6 @@ function MySeries() {
   return (
     <div className="my-series">
       <div className="page-header">
-        <div className="header-top">
-          {series.length > 0 && (
-            <button
-              className="btn-secondary refresh-all-btn"
-              onClick={handleRefreshAll}
-              disabled={refreshing}
-            >
-              {refreshing ? 'Actualizando...' : '↻ Actualizar todas'}
-            </button>
-          )}
-        </div>
         <div className="filter-buttons">
           <button
             className={filter === 'all' ? 'btn-primary' : 'btn-secondary'}
@@ -105,6 +94,15 @@ function MySeries() {
           >
             Sin empezar
           </button>
+          {series.length > 0 && (
+            <button
+              className="btn-secondary refresh-all-btn"
+              onClick={handleRefreshAll}
+              disabled={refreshing}
+            >
+              {refreshing ? 'Actualizando...' : '↻ Actualizar todas'}
+            </button>
+          )}
         </div>
       </div>
 

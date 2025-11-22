@@ -201,6 +201,17 @@ function SeriesDetail() {
           {series.synopsis && (
             <p className="synopsis">{series.synopsis}</p>
           )}
+
+          {series.url && (
+            <a
+              href={series.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              Ver en ListadoManga.es →
+            </a>
+          )}
         </div>
 
         <div className="series-actions">
@@ -296,17 +307,6 @@ function SeriesDetail() {
           <h2>Tomos disponibles: {volumes.length}</h2>
           <p className="text-muted">Sigue esta serie para gestionar tus compras</p>
         </section>
-      )}
-
-      {series.url && (
-        <a
-          href={series.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="external-link"
-        >
-          Ver en ListadoManga.es →
-        </a>
       )}
     </div>
   )

@@ -19,16 +19,31 @@
   gap: 1rem;
 }
 
+.wishlist-link {
+  display: flex;
+  flex-direction: row;
+  gap: 1rem;
+  color: var(--text);
+}
+
+.wishlist-link:hover {
+  text-decoration: none;
+}
+
+.wishlist-cover {
+  width: 80px;
+  height: auto;
+  border-radius: 0.5rem;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
 .wishlist-content {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  color: var(--text);
   flex: 1;
-}
-
-.wishlist-content:hover {
-  text-decoration: none;
+  min-width: 0;
 }
 
 .wishlist-content h3 {

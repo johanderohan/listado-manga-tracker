@@ -173,10 +173,11 @@ router.get('/wishlist', (req, res) => {
       SELECT
         s.*,
         w.added_at,
-        w.notes
+        w.notes,
+        (SELECT cover_url FROM volumes WHERE series_id = s.id AND number = 1 LIMIT 1) as cover_url
       FROM wishlist w
       JOIN series s ON s.id = w.series_id
-      ORDER BY w.added_at DESC
+      ORDER BY s.name ASC
     `).all();
 
     res.json(wishlist);
