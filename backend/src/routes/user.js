@@ -25,7 +25,7 @@ router.get('/series', (req, res) => {
       JOIN series s ON s.id = us.series_id
       LEFT JOIN user_volumes uv ON uv.series_id = s.id
       GROUP BY s.id
-      ORDER BY us.added_at DESC
+      ORDER BY s.name ASC
     `).all();
 
     res.json(series);

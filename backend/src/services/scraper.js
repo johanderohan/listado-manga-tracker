@@ -109,82 +109,98 @@ export async function scrapeSeriesDetail(seriesId) {
   // Detectar si la serie está completa (todos los tomos publicados)
   series.is_complete = pageText.toLowerCase().includes('serie completa') ? 1 : 0;
 
-  // Extraer información de tomos EDITADOS (publicados)
-  // El HTML une el número del tomo con las páginas: "nº1192 páginas" = tomo 1, 192 páginas
-  const volumePattern = /nº\s*0?(\d+)\s*páginas.*?(\d+,\d+)\s*€/gi;
-  let match;
   const volumes = [];
   const seenVolumes = new Set();
 
-  while ((match = volumePattern.exec(pageText)) !== null) {
-    const combinedNum = match[1];
-    const price = parseFloat(match[2].replace(',', '.'));
-
-    // Separar número de tomo y páginas
-    let volumeNum, pages;
-
+  // Función para extraer número de tomo del texto combinado
+  function parseVolumeNumber(combinedNum) {
     if (combinedNum.length <= 3) {
-      volumeNum = parseInt(combinedNum);
-      pages = 0;
-    } else {
-      // Caso combinado: "nº10192" = tomo 10, 192 páginas
-      const maxTomoDigits = Math.min(3, combinedNum.length - 3);
-      for (let i = maxTomoDigits; i >= 1; i--) {
-        const possibleVolume = parseInt(combinedNum.slice(0, i));
-        const possiblePages = parseInt(combinedNum.slice(i));
+      return { volumeNum: parseInt(combinedNum), pages: 0 };
+    }
+    const maxTomoDigits = Math.min(3, combinedNum.length - 3);
+    for (let i = maxTomoDigits; i >= 1; i--) {
+      const possibleVolume = parseInt(combinedNum.slice(0, i));
+      const possiblePages = parseInt(combinedNum.slice(i));
+      if (possiblePages >= 100 && possiblePages <= 500 && possibleVolume <= 200) {
+        return { volumeNum: possibleVolume, pages: possiblePages };
+      }
+    }
+    return { volumeNum: parseInt(combinedNum.slice(0, 1)), pages: parseInt(combinedNum.slice(1)) || 0 };
+  }
 
-        if (possiblePages >= 100 && possiblePages <= 500 && possibleVolume <= 200) {
-          volumeNum = possibleVolume;
-          pages = possiblePages;
+  // Función para extraer volúmenes de una sección del HTML
+  function extractVolumesFromSection(sectionHtml, isReleased) {
+    // Patrón para volúmenes con número y precio
+    const volumePattern = /nº\s*0?(\d+)[\s\S]*?(\d+)\s*páginas[\s\S]*?(\d+,\d+)\s*€/gi;
+    let match;
+    while ((match = volumePattern.exec(sectionHtml)) !== null) {
+      const volumeNum = parseInt(match[1]);
+      const pages = parseInt(match[2]);
+      const price = parseFloat(match[3].replace(',', '.'));
+      if (volumeNum && !seenVolumes.has(volumeNum)) {
+        seenVolumes.add(volumeNum);
+        volumes.push({ series_id: seriesId, number: volumeNum, pages, price, is_released: isReleased });
+      }
+    }
+
+    // Patrón para volúmenes con número pero sin precio
+    const noPricePattern = /nº\s*0?(\d+)[\s\S]*?(\d+)\s*páginas(?![\s\S]*?€)/gi;
+    let noPriceMatch;
+    while ((noPriceMatch = noPricePattern.exec(sectionHtml)) !== null) {
+      const volumeNum = parseInt(noPriceMatch[1]);
+      const pages = parseInt(noPriceMatch[2]);
+      if (volumeNum && !seenVolumes.has(volumeNum)) {
+        seenVolumes.add(volumeNum);
+        volumes.push({ series_id: seriesId, number: volumeNum, pages, price: 0, is_released: isReleased });
+      }
+    }
+
+    // Patrón para tomos únicos sin número (ej: "Serie<br/>400 páginas")
+    // Solo si no hay volúmenes encontrados aún en esta sección
+    if (volumes.filter(v => v.is_released === isReleased).length === 0 || seenVolumes.size === 0) {
+      const singleVolumePattern = /(\d+)\s*páginas/gi;
+      let singleMatch;
+      while ((singleMatch = singleVolumePattern.exec(sectionHtml)) !== null) {
+        const pages = parseInt(singleMatch[1]);
+        if (!seenVolumes.has(1) && pages >= 50) {
+          seenVolumes.add(1);
+          // Buscar precio cercano
+          const priceMatch = sectionHtml.match(/(\d+,\d+)\s*€/);
+          const price = priceMatch ? parseFloat(priceMatch[1].replace(',', '.')) : 0;
+          volumes.push({ series_id: seriesId, number: 1, pages, price, is_released: isReleased });
           break;
         }
       }
-
-      if (!volumeNum) {
-        volumeNum = parseInt(combinedNum.slice(0, 1));
-        pages = parseInt(combinedNum.slice(1)) || 0;
-      }
     }
 
-    if (volumeNum && !seenVolumes.has(volumeNum)) {
-      seenVolumes.add(volumeNum);
-      volumes.push({
-        series_id: seriesId,
-        number: volumeNum,
-        pages: pages || 0,
-        price,
-        is_released: 1
-      });
-    }
-  }
-
-  // Guardar número de tomos editados
-  const releasedCount = volumes.length;
-
-  // Extraer tomos NO EDITADOS (pendientes de publicar)
-  // Buscar sección "Números no editados" y capturar los números
-  const unreleasedSection = pageText.match(/N[úu]meros no editados([\s\S]*?)(?:$|Colecciones relacionadas|Enlaces)/i);
-  if (unreleasedSection) {
-    const unreleasedText = unreleasedSection[1];
-    // Buscar patrones como "nº3", "nº4", etc. (sin precio ni páginas)
-    const unreleasedPattern = /nº\s*0?(\d+)(?!\d*\s*páginas)/gi;
-    let unreleasedMatch;
-
-    while ((unreleasedMatch = unreleasedPattern.exec(unreleasedText)) !== null) {
-      const volumeNum = parseInt(unreleasedMatch[1]);
-
+    // Buscar volúmenes simples sin precio ni páginas (no editados)
+    const simplePattern = /nº\s*0?(\d+)(?![\s\S]*?páginas)/gi;
+    let simpleMatch;
+    while ((simpleMatch = simplePattern.exec(sectionHtml)) !== null) {
+      const volumeNum = parseInt(simpleMatch[1]);
       if (volumeNum && !seenVolumes.has(volumeNum)) {
         seenVolumes.add(volumeNum);
-        volumes.push({
-          series_id: seriesId,
-          number: volumeNum,
-          pages: 0,
-          price: 0,
-          is_released: 0
-        });
+        volumes.push({ series_id: seriesId, number: volumeNum, pages: 0, price: 0, is_released: isReleased });
       }
     }
   }
+
+  // Buscar secciones por h2
+  let currentSection = '';
+  const bodyHtml = $('body').html();
+
+  // Dividir por secciones usando los h2
+  const editadosMatch = bodyHtml.match(/Números editados<\/h2>([\s\S]*?)(?=<h2>|$)/i);
+  const preparacionMatch = bodyHtml.match(/Números en preparación<\/h2>([\s\S]*?)(?=<h2>|$)/i);
+  const noEditadosMatch = bodyHtml.match(/Números no editados<\/h2>([\s\S]*?)(?=<h2>|$)/i);
+
+  // Extraer de cada sección con su estado correspondiente
+  if (editadosMatch) extractVolumesFromSection(editadosMatch[1], 1);
+  if (preparacionMatch) extractVolumesFromSection(preparacionMatch[1], 0);
+  if (noEditadosMatch) extractVolumesFromSection(noEditadosMatch[1], 0);
+
+  // Contar solo los editados (publicados)
+  const releasedCount = volumes.filter(v => v.is_released === 1).length;
 
   // Ordenar por número de tomo
   volumes.sort((a, b) => a.number - b.number);
