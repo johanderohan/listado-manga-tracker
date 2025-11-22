@@ -173,6 +173,20 @@ export async function scrapeSeriesDetail(seriesId) {
       }
     }
 
+    // Patrón para tomo único sin número pero con precio
+    if (volumes.filter(v => v.is_released === isReleased).length === 0 || seenVolumes.size === 0) {
+      const singleVolumeWithPricePattern = /(\d+,\d+)\s*€/gi;
+      let singleMatch;
+      while ((singleMatch = singleVolumeWithPricePattern.exec(sectionHtml)) !== null) {
+        if (!seenVolumes.has(1)) {
+          seenVolumes.add(1);
+          const price = parseFloat(singleMatch[1].replace(',', '.'));
+          volumes.push({ series_id: seriesId, number: 1, pages: 0, price, is_released: isReleased });
+          break;
+        }
+      }
+    }
+
     // Buscar volúmenes simples sin precio ni páginas (no editados)
     const simplePattern = /nº\s*0?(\d+)(?![\s\S]*?páginas)/gi;
     let simpleMatch;
