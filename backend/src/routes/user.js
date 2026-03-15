@@ -104,6 +104,12 @@ router.post('/series/:seriesId/follow', (req, res) => {
 // Obtener próximos tomos pendientes de comprar (solo publicados)
 router.get('/pending', (req, res) => {
   try {
+    const monthOrder = {
+      'enero': '01', 'febrero': '02', 'marzo': '03', 'abril': '04',
+      'mayo': '05', 'junio': '06', 'julio': '07', 'agosto': '08',
+      'septiembre': '09', 'octubre': '10', 'noviembre': '11', 'diciembre': '12'
+    };
+
     const pending = db.prepare(`
       SELECT
         v.*,
@@ -115,10 +121,66 @@ router.get('/pending', (req, res) => {
       JOIN user_series us ON us.series_id = s.id
       LEFT JOIN user_volumes uv ON uv.series_id = v.series_id AND uv.volume_number = v.number
       WHERE us.status = 'following' AND uv.id IS NULL AND v.is_released = 1
-      ORDER BY s.name, v.number
     `).all();
 
+    // Ordenar por fecha de lanzamiento descendente (recientes primero)
+    pending.sort((a, b) => {
+      const parseDate = (dateStr) => {
+        if (!dateStr) return '0000-00';
+        const parts = dateStr.toLowerCase().split(' ');
+        if (parts.length !== 2) return '0000-00';
+        const month = monthOrder[parts[0]] || '00';
+        const year = parts[1] || '0000';
+        return `${year}-${month}`;
+      };
+      const cmp = parseDate(b.release_date).localeCompare(parseDate(a.release_date));
+      if (cmp !== 0) return cmp;
+      return a.series_name.localeCompare(b.series_name) || a.number - b.number;
+    });
+
     res.json(pending);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Obtener próximos lanzamientos (tomos no publicados con fecha)
+router.get('/upcoming', (req, res) => {
+  try {
+    // Mapeo de meses en español a números para ordenar
+    const monthOrder = {
+      'enero': '01', 'febrero': '02', 'marzo': '03', 'abril': '04',
+      'mayo': '05', 'junio': '06', 'julio': '07', 'agosto': '08',
+      'septiembre': '09', 'octubre': '10', 'noviembre': '11', 'diciembre': '12'
+    };
+
+    const upcoming = db.prepare(`
+      SELECT
+        v.*,
+        s.name as series_name,
+        s.editorial_es,
+        (SELECT cover_url FROM volumes WHERE series_id = s.id AND number = 1 LIMIT 1) as series_cover
+      FROM volumes v
+      JOIN series s ON s.id = v.series_id
+      JOIN user_series us ON us.series_id = s.id
+      WHERE us.status = 'following' AND v.is_released = 0 AND v.release_date IS NOT NULL
+      ORDER BY v.release_date
+    `).all();
+
+    // Ordenar por fecha (parsear "Mes Año" a fecha comparable)
+    upcoming.sort((a, b) => {
+      const parseDate = (dateStr) => {
+        if (!dateStr) return '9999-12';
+        const parts = dateStr.toLowerCase().split(' ');
+        if (parts.length !== 2) return '9999-12';
+        const month = monthOrder[parts[0]] || '12';
+        const year = parts[1] || '9999';
+        return `${year}-${month}`;
+      };
+      return parseDate(a.release_date).localeCompare(parseDate(b.release_date));
+    });
+
+    res.json(upcoming);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -256,6 +318,8 @@ router.delete('/wishlist/:seriesId', (req, res) => {
 
 router.get('/stats', (req, res) => {
   try {
+    const lastRefreshRow = db.prepare("SELECT value FROM app_config WHERE key = 'last_refresh'").get();
+
     const stats = {
       totalSeries: db.prepare('SELECT COUNT(*) as count FROM user_series').get().count,
       totalVolumes: db.prepare('SELECT COUNT(*) as count FROM user_volumes').get().count,
@@ -266,7 +330,8 @@ router.get('/stats', (req, res) => {
         JOIN series s ON s.id = us.series_id
         WHERE s.is_complete = 1
         AND (SELECT COUNT(*) FROM user_volumes uv WHERE uv.series_id = s.id) = s.total_volumes
-      `).get().count
+      `).get().count,
+      lastRefresh: lastRefreshRow?.value || null
     };
 
     res.json(stats);
