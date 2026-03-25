@@ -128,73 +128,121 @@ export async function scrapeSeriesDetail(seriesId) {
     return { volumeNum: parseInt(combinedNum.slice(0, 1)), pages: parseInt(combinedNum.slice(1)) || 0 };
   }
 
+  // Función para extraer fecha de lanzamiento de un bloque de texto
+  function extractReleaseDate(text) {
+    // Buscar patrón de fecha en enlace: <a href="novedades.php?mes=X&ano=Y">Mes Año</a>
+    const dateMatch = text.match(/<a[^>]*novedades\.php[^>]*>([^<]+)<\/a>/i);
+    if (dateMatch) {
+      return dateMatch[1].trim();
+    }
+    return null;
+  }
+
+  // Función para extraer URL de portada de un bloque
+  function extractCoverUrl(block) {
+    // Buscar data-portada primero (imagen de alta calidad)
+    const dataPortadaMatch = block.match(/data-portada="([^"]+)"/i);
+    if (dataPortadaMatch) {
+      return `https://static.listadomanga.com/${dataPortadaMatch[1]}`;
+    }
+    // Buscar src de imagen
+    const srcMatch = block.match(/src="(https:\/\/static\.listadomanga\.com\/[^"]+)"/i);
+    if (srcMatch) {
+      return srcMatch[1];
+    }
+    return null;
+  }
+
   // Función para extraer volúmenes de una sección del HTML
   function extractVolumesFromSection(sectionHtml, isReleased) {
-    // Patrón para volúmenes con número y precio
-    const volumePattern = /nº\s*0?(\d+)[\s\S]*?(\d+)\s*páginas[\s\S]*?(\d+,\d+)\s*€/gi;
-    let match;
-    while ((match = volumePattern.exec(sectionHtml)) !== null) {
-      const volumeNum = parseInt(match[1]);
-      const pages = parseInt(match[2]);
-      const price = parseFloat(match[3].replace(',', '.'));
-      if (volumeNum && !seenVolumes.has(volumeNum)) {
-        seenVolumes.add(volumeNum);
-        volumes.push({ series_id: seriesId, number: volumeNum, pages, price, is_released: isReleased });
+    // Dividir por cada bloque de volumen (ventana_id seguido de cualquier dígito)
+    const volumeBlocks = sectionHtml.split(/class="ventana_id\d+"/gi);
+
+    for (const block of volumeBlocks) {
+      // Buscar número de volumen
+      const numMatch = block.match(/n(?:º|&ordm;)\s*(\d+)/i);
+      if (!numMatch) continue;
+
+      const volumeNum = parseInt(numMatch[1]);
+      if (isNaN(volumeNum) || seenVolumes.has(volumeNum)) continue;
+
+      // Extraer páginas
+      const pagesMatch = block.match(/(\d+)\s*p[aá]ginas/i);
+      const pages = pagesMatch ? parseInt(pagesMatch[1]) : 0;
+
+      // Extraer precio
+      const priceMatch = block.match(/(\d+,\d+)\s*€/);
+      const price = priceMatch ? parseFloat(priceMatch[1].replace(',', '.')) : 0;
+
+      // Extraer fecha de lanzamiento
+      const releaseDate = extractReleaseDate(block);
+
+      // Extraer portada del mismo bloque
+      const coverUrl = extractCoverUrl(block);
+
+      seenVolumes.add(volumeNum);
+      volumes.push({
+        series_id: seriesId,
+        number: volumeNum,
+        pages,
+        price,
+        is_released: isReleased,
+        release_date: releaseDate,
+        cover_url: coverUrl
+      });
+    }
+
+    // Si no se encontraron volúmenes con el método anterior, usar patrón simple
+    if (volumes.filter(v => v.is_released === isReleased).length === 0) {
+      const simplePattern = /n(?:º|&ordm;)\s*0?(\d+)/gi;
+      let simpleMatch;
+      while ((simpleMatch = simplePattern.exec(sectionHtml)) !== null) {
+        const volumeNum = parseInt(simpleMatch[1]);
+        if (volumeNum && !seenVolumes.has(volumeNum)) {
+          seenVolumes.add(volumeNum);
+          volumes.push({ series_id: seriesId, number: volumeNum, pages: 0, price: 0, is_released: isReleased, release_date: null, cover_url: null });
+        }
       }
     }
 
-    // Patrón para volúmenes con número pero sin precio
-    const noPricePattern = /nº\s*0?(\d+)[\s\S]*?(\d+)\s*páginas(?![\s\S]*?€)/gi;
-    let noPriceMatch;
-    while ((noPriceMatch = noPricePattern.exec(sectionHtml)) !== null) {
-      const volumeNum = parseInt(noPriceMatch[1]);
-      const pages = parseInt(noPriceMatch[2]);
-      if (volumeNum && !seenVolumes.has(volumeNum)) {
-        seenVolumes.add(volumeNum);
-        volumes.push({ series_id: seriesId, number: volumeNum, pages, price: 0, is_released: isReleased });
-      }
-    }
-
-    // Patrón para tomos únicos sin número (ej: "Serie<br/>400 páginas")
-    // Solo si no hay volúmenes encontrados aún en esta sección
+    // Patrón para tomos únicos sin número (ej: "Serie 400 páginas")
     if (volumes.filter(v => v.is_released === isReleased).length === 0 || seenVolumes.size === 0) {
-      const singleVolumePattern = /(\d+)\s*páginas/gi;
+      const singleVolumePattern = /(\d+)\s*p[aá]ginas/gi;
       let singleMatch;
       while ((singleMatch = singleVolumePattern.exec(sectionHtml)) !== null) {
         const pages = parseInt(singleMatch[1]);
         if (!seenVolumes.has(1) && pages >= 50) {
           seenVolumes.add(1);
-          // Buscar precio cercano
           const priceMatch = sectionHtml.match(/(\d+,\d+)\s*€/);
           const price = priceMatch ? parseFloat(priceMatch[1].replace(',', '.')) : 0;
-          volumes.push({ series_id: seriesId, number: 1, pages, price, is_released: isReleased });
+          const releaseDate = extractReleaseDate(sectionHtml);
+          const coverUrl = extractCoverUrl(sectionHtml);
+          volumes.push({ series_id: seriesId, number: 1, pages, price, is_released: isReleased, release_date: releaseDate, cover_url: coverUrl });
           break;
         }
       }
     }
 
-    // Patrón para tomo único sin número pero con precio
-    if (volumes.filter(v => v.is_released === isReleased).length === 0 || seenVolumes.size === 0) {
-      const singleVolumeWithPricePattern = /(\d+,\d+)\s*€/gi;
-      let singleMatch;
-      while ((singleMatch = singleVolumeWithPricePattern.exec(sectionHtml)) !== null) {
-        if (!seenVolumes.has(1)) {
-          seenVolumes.add(1);
-          const price = parseFloat(singleMatch[1].replace(',', '.'));
-          volumes.push({ series_id: seriesId, number: 1, pages: 0, price, is_released: isReleased });
-          break;
-        }
+    // Último recurso: tomo único solo con precio (sin páginas ni número)
+    if (volumes.filter(v => v.is_released === isReleased).length === 0 && !seenVolumes.has(1)) {
+      const priceMatch = sectionHtml.match(/(\d+,\d+)\s*€/);
+      if (priceMatch) {
+        seenVolumes.add(1);
+        const price = parseFloat(priceMatch[1].replace(',', '.'));
+        const releaseDate = extractReleaseDate(sectionHtml);
+        const coverUrl = extractCoverUrl(sectionHtml);
+        volumes.push({ series_id: seriesId, number: 1, pages: 0, price, is_released: isReleased, release_date: releaseDate, cover_url: coverUrl });
       }
     }
 
-    // Buscar volúmenes simples sin precio ni páginas (no editados)
-    const simplePattern = /nº\s*0?(\d+)(?![\s\S]*?páginas)/gi;
-    let simpleMatch;
-    while ((simpleMatch = simplePattern.exec(sectionHtml)) !== null) {
-      const volumeNum = parseInt(simpleMatch[1]);
-      if (volumeNum && !seenVolumes.has(volumeNum)) {
-        seenVolumes.add(volumeNum);
-        volumes.push({ series_id: seriesId, number: volumeNum, pages: 0, price: 0, is_released: isReleased });
+    // Último último recurso: tomo único solo con fecha (sin páginas, precio ni número)
+    if (volumes.filter(v => v.is_released === isReleased).length === 0 && !seenVolumes.has(1)) {
+      const releaseDate = extractReleaseDate(sectionHtml);
+      const coverUrl = extractCoverUrl(sectionHtml);
+      // Si hay fecha o portada, asumir que es un tomo único
+      if (releaseDate || coverUrl) {
+        seenVolumes.add(1);
+        volumes.push({ series_id: seriesId, number: 1, pages: 0, price: 0, is_released: isReleased, release_date: releaseDate, cover_url: coverUrl });
       }
     }
   }
@@ -203,13 +251,13 @@ export async function scrapeSeriesDetail(seriesId) {
   let currentSection = '';
   const bodyHtml = $('body').html();
 
-  // Dividir por secciones usando los h2
-  const editadosMatch = bodyHtml.match(/Números editados<\/h2>([\s\S]*?)(?=<h2>|$)/i);
-  const preparacionMatch = bodyHtml.match(/Números en preparación<\/h2>([\s\S]*?)(?=<h2>|$)/i);
-  const noEditadosMatch = bodyHtml.match(/Números no editados<\/h2>([\s\S]*?)(?=<h2>|$)/i);
+  // Dividir por secciones usando los h2 (puede incluir nombre de editorial en paréntesis)
+  const editadosMatches = [...bodyHtml.matchAll(/N[uú]meros editados[^<]*<\/h2>([\s\S]*?)(?=<h2>|$)/gi)];
+  const preparacionMatch = bodyHtml.match(/N[uú]meros en preparaci[oó]n[^<]*<\/h2>([\s\S]*?)(?=<h2>|$)/i);
+  const noEditadosMatch = bodyHtml.match(/N[uú]meros no editados[^<]*<\/h2>([\s\S]*?)(?=<h2>|$)/i);
 
   // Extraer de cada sección con su estado correspondiente
-  if (editadosMatch) extractVolumesFromSection(editadosMatch[1], 1);
+  for (const match of editadosMatches) extractVolumesFromSection(match[1], 1);
   if (preparacionMatch) extractVolumesFromSection(preparacionMatch[1], 0);
   if (noEditadosMatch) extractVolumesFromSection(noEditadosMatch[1], 0);
 
@@ -236,13 +284,6 @@ export async function scrapeSeriesDetail(seriesId) {
     }
   }
 
-  // Extraer imágenes de portadas
-  $('img[src*="static.listadomanga"]').each((index, img) => {
-    const src = $(img).attr('src');
-    if (volumes[index]) {
-      volumes[index].cover_url = src;
-    }
-  });
 
   series.volumes = volumes;
   series.total_volumes = volumes.length;
