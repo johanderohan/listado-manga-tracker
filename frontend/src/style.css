@@ -1,0 +1,143 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  font-family: theme('fontFamily.sans');
+  background: theme('colors.manga.dark');
+  color: theme('colors.ink.DEFAULT');
+  background-image: theme('backgroundImage.radial-spot');
+  background-attachment: fixed;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+@layer components {
+  .container-app {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .surface {
+    @apply bg-manga-panel/80 ring-1 ring-manga-line backdrop-blur-sm rounded-2xl;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium
+           transition-all duration-200 active:scale-[0.98]
+           disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-primary {
+    @apply btn bg-manga-accent text-white hover:bg-manga-accent/90
+           shadow-[0_8px_24px_rgba(99,102,241,0.35)];
+  }
+  .btn-secondary {
+    @apply btn bg-manga-surface text-ink hover:bg-manga-surface/70 ring-1 ring-manga-line;
+  }
+  .btn-ghost {
+    @apply btn text-ink-muted hover:text-ink hover:bg-white/5;
+  }
+  .btn-danger {
+    @apply btn bg-red-600 text-white hover:bg-red-600/90
+           shadow-[0_8px_24px_rgba(220,38,38,0.30)];
+  }
+  .btn-success {
+    @apply btn bg-emerald-600 text-white hover:bg-emerald-600/90
+           shadow-[0_8px_24px_rgba(5,150,105,0.30)];
+  }
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs rounded-lg;
+  }
+
+  .input {
+    @apply w-full rounded-xl bg-manga-panel/70 ring-1 ring-manga-line px-4 py-2.5
+           text-ink placeholder:text-ink-dim
+           focus:outline-none focus:ring-2 focus:ring-manga-accent/60 focus:bg-manga-panel
+           transition-all;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium
+           bg-white/5 ring-1 ring-manga-line text-ink-muted whitespace-nowrap;
+  }
+  .chip-accent {
+    @apply bg-manga-accent/15 text-manga-accent ring-manga-accent/30;
+  }
+  .chip-success {
+    @apply bg-emerald-500/15 text-emerald-400 ring-emerald-500/30;
+  }
+  .chip-warning {
+    @apply bg-amber-500/15 text-amber-400 ring-amber-500/30;
+  }
+
+  .card {
+    @apply surface overflow-hidden transition-all duration-300
+           hover:-translate-y-0.5 hover:shadow-card hover:ring-white/15;
+  }
+
+  /* Las portadas de origen son diminutas (108x150). Cards pequeñas y
+     densas: cada portada se muestra cerca de su tamaño nativo y se ve
+     nítida en vez de ampliada y borrosa. */
+  .grid-covers {
+    @apply grid gap-3;
+    grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+  }
+
+  .display {
+    font-family: theme('fontFamily.display');
+    letter-spacing: 0.02em;
+  }
+}
+
+/* Transición de vistas */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(4px);
+}
+
+/* Skeleton */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

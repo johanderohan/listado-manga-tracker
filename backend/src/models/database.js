@@ -72,6 +72,12 @@ export function initDatabase() {
     -- Índices para mejorar rendimiento
     CREATE INDEX IF NOT EXISTS idx_volumes_series ON volumes(series_id);
     CREATE INDEX IF NOT EXISTS idx_user_volumes_series ON user_volumes(series_id);
+
+    -- Configuración de la aplicación
+    CREATE TABLE IF NOT EXISTS app_config (
+      key TEXT PRIMARY KEY,
+      value TEXT
+    );
   `);
 
   // Migraciones para tablas existentes

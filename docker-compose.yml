@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   backend:
     build:
@@ -10,10 +8,20 @@ services:
     volumes:
       - ./backend/src:/app/src
       - ./data:/app/data
+      - ./exports:/app/exports
     environment:
       - NODE_ENV=development
       - PORT=3001
       - DB_PATH=/app/data/manga.db
+      - EXPORTS_PATH=/app/exports
+      # El cron usa hora local (07:00); fijar la zona es crítico.
+      - TZ=Europe/Madrid
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3001/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     restart: unless-stopped
 
   frontend:
@@ -21,14 +29,10 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "4000:3000"
-    volumes:
-      - ./frontend/src:/app/src
+      - "4000:80"
     environment:
-      - NODE_ENV=development
+      - TZ=Europe/Madrid
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
-
-volumes:
-  backend_data:

@@ -1,12 +1,18 @@
-FROM node:20-alpine
+# --- Stage 1: build estático con Vite ---
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
 COPY . .
+RUN npm run build
 
-EXPOSE 3000
+# --- Stage 2: nginx sirviendo el dist + reverse proxy al backend ---
+FROM nginx:alpine AS runner
 
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+EXPOSE 80

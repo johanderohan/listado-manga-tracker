@@ -1,11 +1,33 @@
-import db from '../models/database.js';
+import db from '../config/db.js';
 import { scrapeSeriesDetail } from './scraper.js';
+import {
+  upsertScrapedSeries,
+  replaceVolumes,
+  countVolumes,
+  setLastRefresh
+} from './seriesSync.service.js';
 
-// Intervalo de actualización: cada 24 horas (en milisegundos)
-const UPDATE_INTERVAL = 24 * 60 * 60 * 1000;
+// Hora de actualización diaria (7:00 AM)
+const UPDATE_HOUR = 7;
+const UPDATE_MINUTE = 0;
 
 // Delay entre peticiones para no sobrecargar el servidor (2 segundos)
 const REQUEST_DELAY = 2000;
+
+// Calcula los milisegundos hasta la próxima hora programada
+function getMillisecondsUntilNextRun() {
+  const now = new Date();
+  const next = new Date();
+
+  next.setHours(UPDATE_HOUR, UPDATE_MINUTE, 0, 0);
+
+  // Si ya pasó la hora de hoy, programar para mañana
+  if (now >= next) {
+    next.setDate(next.getDate() + 1);
+  }
+
+  return next.getTime() - now.getTime();
+}
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -34,50 +56,14 @@ async function updateAllUserSeries() {
   for (const { series_id, name } of userSeries) {
     try {
       // Contar tomos anteriores
-      const oldCount = db.prepare('SELECT COUNT(*) as count FROM volumes WHERE series_id = ?').get(series_id).count;
+      const oldCount = countVolumes(series_id);
 
       // Hacer scraping
       const scrapedData = await scrapeSeriesDetail(series_id);
 
-      // Actualizar serie
-      db.prepare(`
-        INSERT OR REPLACE INTO series (id, name, original_name, author, artist, editorial_jp, editorial_es, reading_direction, total_volumes, released_volumes, is_complete, synopsis, url, last_updated)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-      `).run(
-        scrapedData.id,
-        scrapedData.name,
-        scrapedData.original_name,
-        scrapedData.author,
-        scrapedData.artist,
-        scrapedData.editorial_jp,
-        scrapedData.editorial_es,
-        scrapedData.reading_direction,
-        scrapedData.total_volumes,
-        scrapedData.released_volumes || scrapedData.total_volumes,
-        scrapedData.is_complete,
-        scrapedData.synopsis,
-        `https://www.listadomanga.es/coleccion.php?id=${series_id}`
-      );
-
-      // Actualizar volúmenes
-      db.prepare('DELETE FROM volumes WHERE series_id = ?').run(series_id);
-
-      const insertVolume = db.prepare(`
-        INSERT INTO volumes (series_id, number, title, pages, price, cover_url, is_released)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `);
-
-      for (const vol of scrapedData.volumes) {
-        insertVolume.run(
-          vol.series_id,
-          vol.number,
-          vol.title || `Tomo ${vol.number}`,
-          vol.pages,
-          vol.price,
-          vol.cover_url,
-          vol.is_released ?? 1
-        );
-      }
+      // Actualizar serie y volúmenes
+      upsertScrapedSeries(scrapedData, series_id);
+      replaceVolumes(series_id, scrapedData.volumes);
 
       const newCount = scrapedData.volumes.length;
       const diff = newCount - oldCount;
@@ -98,22 +84,31 @@ async function updateAllUserSeries() {
     }
   }
 
+  // Guardar fecha de última actualización
+  setLastRefresh();
+
   console.log(`[CRON] Actualización completada: ${updated} series, ${newVolumes} tomos nuevos, ${errors} errores`);
+}
+
+function scheduleNextRun() {
+  const msUntilNext = getMillisecondsUntilNextRun();
+  const nextRun = new Date(Date.now() + msUntilNext);
+
+  console.log(`[CRON] Próxima actualización programada: ${nextRun.toLocaleString('es-ES')}`);
+
+  setTimeout(async () => {
+    await updateAllUserSeries();
+    // Después de ejecutar, programar la siguiente (mañana a las 7 AM)
+    scheduleNextRun();
+  }, msUntilNext);
 }
 
 export function startCronJob() {
   console.log('[CRON] Servicio de actualización iniciado');
-  console.log(`[CRON] Próxima actualización en 24 horas`);
+  console.log(`[CRON] Actualización diaria programada a las ${UPDATE_HOUR}:${String(UPDATE_MINUTE).padStart(2, '0')}`);
 
-  // Ejecutar la primera actualización después de 1 minuto (para dar tiempo a que el servidor arranque)
-  setTimeout(() => {
-    updateAllUserSeries();
-  }, 60 * 1000);
-
-  // Programar actualizaciones cada 24 horas
-  setInterval(() => {
-    updateAllUserSeries();
-  }, UPDATE_INTERVAL);
+  // Programar la primera ejecución a las 7 AM
+  scheduleNextRun();
 }
 
 // Función para ejecutar actualización manual (usada por el endpoint)

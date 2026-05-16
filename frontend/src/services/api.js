@@ -1,65 +1,69 @@
-const API_BASE = '/api';
+import axios from 'axios';
 
-async function fetchJson(url, options = {}) {
-  const response = await fetch(`${API_BASE}${url}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers
-    }
-  });
+// App de un solo usuario sin auth: no se envían cookies de sesión ni
+// cabeceras CSRF. Timeout alto porque scrape / refresh-all son lentos.
+export const api = axios.create({
+  baseURL: '/api',
+  timeout: 120_000
+});
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Error de conexión' }));
-    throw new Error(error.error || 'Error desconocido');
+api.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    const message =
+      err.response?.data?.message ||
+      err.response?.data?.error ||
+      err.message ||
+      'Error de red';
+    return Promise.reject(Object.assign(new Error(message), { original: err }));
   }
+);
 
-  return response.json();
-}
+// === Series ===
+export const searchSeries = (query) =>
+  api.get('/series/search', { params: { q: query } }).then((r) => r.data);
+export const getSeries = (id) => api.get(`/series/${id}`).then((r) => r.data);
+export const getAllSeries = (params = {}) =>
+  api.get('/series', { params }).then((r) => r.data);
+export const syncSeries = () => api.post('/series/sync').then((r) => r.data);
+export const refreshSeries = (seriesId) =>
+  api.post(`/series/${seriesId}/refresh`).then((r) => r.data);
+export const refreshAllSeries = () =>
+  api.post('/series/refresh-all').then((r) => r.data);
 
-// Series
-export const searchSeries = (query) => fetchJson(`/series/search?q=${encodeURIComponent(query)}`);
-export const getSeries = (id) => fetchJson(`/series/${id}`);
-export const getAllSeries = (params = {}) => {
-  const queryString = new URLSearchParams(params).toString();
-  return fetchJson(`/series?${queryString}`);
-};
-export const syncSeries = () => fetchJson('/series/sync', { method: 'POST' });
-export const refreshSeries = (seriesId) => fetchJson(`/series/${seriesId}/refresh`, { method: 'POST' });
-export const refreshAllSeries = () => fetchJson('/series/refresh-all', { method: 'POST' });
+// === Series del usuario ===
+export const getUserSeries = (status = 'following') =>
+  api.get('/user/series', { params: { status } }).then((r) => r.data);
+export const followSeries = (seriesId) =>
+  api.post(`/user/series/${seriesId}`).then((r) => r.data);
+export const deleteUserSeries = (seriesId) =>
+  api.delete(`/user/series/${seriesId}`).then((r) => r.data);
+export const discardSeries = (seriesId) =>
+  api.post(`/user/series/${seriesId}/discard`).then((r) => r.data);
+export const refollowSeries = (seriesId) =>
+  api.post(`/user/series/${seriesId}/follow`).then((r) => r.data);
 
-// User Series
-export const getUserSeries = (status = 'following') => {
-  const queryString = new URLSearchParams({ status }).toString();
-  return fetchJson(`/user/series?${queryString}`);
-};
-export const followSeries = (seriesId) => fetchJson(`/user/series/${seriesId}`, { method: 'POST' });
-export const deleteUserSeries = (seriesId) => fetchJson(`/user/series/${seriesId}`, { method: 'DELETE' });
-export const discardSeries = (seriesId) => fetchJson(`/user/series/${seriesId}/discard`, { method: 'POST' });
-export const refollowSeries = (seriesId) => fetchJson(`/user/series/${seriesId}/follow`, { method: 'POST' });
-
-// Volumes
-export const getPendingVolumes = () => fetchJson('/user/pending');
-export const getSeriesVolumes = (seriesId) => fetchJson(`/user/series/${seriesId}/volumes`);
+// === Tomos ===
+export const getPendingVolumes = () => api.get('/user/pending').then((r) => r.data);
+export const getUpcomingVolumes = () => api.get('/user/upcoming').then((r) => r.data);
+export const getRecentVolumes = (limit = 50) =>
+  api.get('/user/recent', { params: { limit } }).then((r) => r.data);
+export const getSeriesVolumes = (seriesId) =>
+  api.get(`/user/series/${seriesId}/volumes`).then((r) => r.data);
 export const markVolumePurchased = (seriesId, volumeNumber) =>
-  fetchJson('/user/volumes', {
-    method: 'POST',
-    body: JSON.stringify({ seriesId, volumeNumber })
-  });
+  api.post('/user/volumes', { seriesId, volumeNumber }).then((r) => r.data);
 export const markVolumesBulk = (seriesId, volumeNumbers) =>
-  fetchJson('/user/volumes/bulk', {
-    method: 'POST',
-    body: JSON.stringify({ seriesId, volumeNumbers })
-  });
+  api.post('/user/volumes/bulk', { seriesId, volumeNumbers }).then((r) => r.data);
 export const unmarkVolumePurchased = (seriesId, volumeNumber) =>
-  fetchJson(`/user/volumes/${seriesId}/${volumeNumber}`, { method: 'DELETE' });
+  api.delete(`/user/volumes/${seriesId}/${volumeNumber}`).then((r) => r.data);
 
-// Wishlist
-export const getWishlist = () => fetchJson('/user/wishlist');
+// === Wishlist ===
+export const getWishlist = () => api.get('/user/wishlist').then((r) => r.data);
 export const addToWishlist = (seriesId, notes = '') =>
-  fetchJson(`/user/wishlist/${seriesId}`, { method: 'POST', body: JSON.stringify({ notes }) });
+  api.post(`/user/wishlist/${seriesId}`, { notes }).then((r) => r.data);
 export const removeFromWishlist = (seriesId) =>
-  fetchJson(`/user/wishlist/${seriesId}`, { method: 'DELETE' });
+  api.delete(`/user/wishlist/${seriesId}`).then((r) => r.data);
 
-// Stats
-export const getStats = () => fetchJson('/user/stats');
+// === Stats ===
+export const getStats = () => api.get('/user/stats').then((r) => r.data);
+export const getStatistics = () => api.get('/user/statistics').then((r) => r.data);
