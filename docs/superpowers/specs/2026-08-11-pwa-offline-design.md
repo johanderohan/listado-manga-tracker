@@ -72,7 +72,9 @@ la ficha de serie (`original_name`, `artist`, `reading_direction`, `synopsis`,
 de "última actualización" de la home.
 
 Incluye las series con `status` `following` **y** `discarded`, para que la
-pestaña de descartadas siga funcionando, y los tomos de ambas.
+pestaña de descartadas siga funcionando, y los tomos de ambas. También las que
+solo están en la wishlist, con `status` a `null`: la wishlist puede contener
+series que no se siguen, y sin ellas esa pantalla saldría vacía sin conexión.
 
 `purchased_at` es imprescindible: la home ordena los tomos recientes por fecha
 de compra, y sin ese campo esa sección no se puede calcular en local.
