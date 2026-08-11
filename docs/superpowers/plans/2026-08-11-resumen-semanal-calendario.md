@@ -1000,7 +1000,10 @@ test('una semana sin novedades manda el aviso corto y marca igual', async () => 
 
   const r = await sendWeeklyDigest({
     database: db,
-    now: new Date(2026, 7, 16, 19, 0, 0), // semana del 17 al 23: el fixture no tiene nada
+    // Semana del 24 al 30: el fixture solo tiene salidas el 14 y el 18. Ojo,
+    // la semana del 17 al 23 no vale: contiene el 86 -Eighty-Six- del día 18,
+    // que es novela ligera y por tanto no se filtra.
+    now: new Date(2026, 7, 23, 19, 0, 0),
     webhookUrl: WEBHOOK,
     fetchImpl: fakeFetch({ 8: agosto }),
     sendImpl: async ({ embeds }) => { enviados.push(embeds); return 'id'; }
@@ -1009,7 +1012,7 @@ test('una semana sin novedades manda el aviso corto y marca igual', async () => 
   assert.equal(r.sent, true);
   assert.equal(r.count, 0);
   assert.match(enviados[0][0].title, /^🗓️ Sin nuevas series/);
-  assert.equal(marca(db), '2026-08-17');
+  assert.equal(marca(db), '2026-08-24');
 });
 
 test('si el mes entero viene vacío, no envía y no marca', async () => {
