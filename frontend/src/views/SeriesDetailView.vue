@@ -3,78 +3,65 @@ import { ref, computed, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   getSeries,
-  getSeriesVolumes,
-  getUserSeries,
-  getWishlist,
   followSeries,
   deleteUserSeries,
   discardSeries,
   addToWishlist,
   removeFromWishlist,
-  markVolumePurchased,
-  unmarkVolumePurchased,
   markVolumesBulk,
   refreshSeries
 } from '../services/api.js';
+import { useCollectionStore } from '../stores/collection.js';
 import { useConfirm } from '../composables/useConfirm.js';
 import ProgressBar from '../components/ProgressBar.vue';
 import ActionMenu from '../components/ActionMenu.vue';
 import VolumeCard from '../components/VolumeCard.vue';
+import NeedsConnection from '../components/NeedsConnection.vue';
 
 const route = useRoute();
 const router = useRouter();
 const { confirm } = useConfirm();
+const collection = useCollectionStore();
 
-const series = ref(null);
-const volumes = ref([]);
-const loading = ref(true);
 const error = ref(null);
-const isFollowing = ref(false);
-const isInWishlist = ref(false);
-const refreshing = ref(false);
 const info = ref(null);
+const refreshing = ref(false);
+
+// Serie que no está en la colección: se llega aquí desde el buscador remoto,
+// así que hay que pedirla al API. Solo funciona con conexión, y es correcto:
+// añadir una serie nueva la necesita igualmente.
+const remote = ref(null);
+const remoteLoading = ref(false);
 
 const seriesId = computed(() => Number(route.params.id));
+const local = computed(() => collection.detail(seriesId.value));
+const series = computed(() => local.value ?? remote.value);
+const volumes = computed(() => series.value?.volumes ?? []);
 
-async function load() {
-  loading.value = true;
-  error.value = null;
-  info.value = null;
+const isFollowing = computed(() => local.value?.status === 'following');
+const isInWishlist = computed(() => collection.wishlist.some((w) => w.id === seriesId.value));
+
+async function cargarRemota() {
+  remote.value = null;
+  if (local.value) return;
+
+  remoteLoading.value = true;
   try {
-    const [seriesData, userSeries, wishlist] = await Promise.all([
-      getSeries(route.params.id),
-      getUserSeries().catch(() => []),
-      getWishlist().catch(() => [])
-    ]);
-
-    series.value = seriesData;
-    volumes.value = seriesData.volumes || [];
-
-    const userSerie = userSeries.find((s) => s.id === seriesId.value);
-    isFollowing.value = !!userSerie && userSerie.status === 'following';
-    isInWishlist.value = wishlist.some((w) => w.id === seriesId.value);
-
-    if (userSerie) {
-      volumes.value = await getSeriesVolumes(route.params.id);
-    }
+    remote.value = await getSeries(route.params.id);
   } catch (e) {
     error.value = e.message;
   } finally {
-    loading.value = false;
+    remoteLoading.value = false;
   }
 }
 
 // === Progreso ===
-const releasedCount = computed(
-  () => volumes.value.filter((v) => v.is_released !== 0).length
-);
+const releasedCount = computed(() => volumes.value.filter((v) => v.is_released !== 0).length);
 const ownedCount = computed(() => volumes.value.filter((v) => v.owned).length);
 const totalCount = computed(() => volumes.value.length);
-const isUpToDate = computed(
-  () => ownedCount.value >= releasedCount.value && releasedCount.value > 0
-);
+const isUpToDate = computed(() => ownedCount.value >= releasedCount.value && releasedCount.value > 0);
 
-// === Acciones ===
+// === Acciones que necesitan conexión ===
 async function handleFollow() {
   const ok = await confirm({
     title: 'Añadir a tu colección',
@@ -84,8 +71,8 @@ async function handleFollow() {
   if (!ok) return;
   try {
     await followSeries(route.params.id);
-    isFollowing.value = true;
-    volumes.value = await getSeriesVolumes(route.params.id);
+    await collection.sync();
+    remote.value = null;
   } catch (e) {
     error.value = e.message;
   }
@@ -101,6 +88,7 @@ async function handleDelete() {
   if (!ok) return;
   try {
     await deleteUserSeries(route.params.id);
+    await collection.sync();
     router.push({ name: 'my-series' });
   } catch (e) {
     error.value = e.message;
@@ -116,43 +104,53 @@ async function handleDiscard() {
   if (!ok) return;
   try {
     await discardSeries(route.params.id);
-    isFollowing.value = false;
+    await collection.sync();
   } catch (e) {
     error.value = e.message;
   }
 }
 
 async function handleToggleWishlist() {
-  if (isInWishlist.value) {
-    const ok = await confirm({
-      title: 'Quitar de la wishlist',
-      message: `¿Quitar «${series.value.name}» de tu wishlist?`,
-      confirmText: 'Quitar',
-      danger: true
-    });
-    if (!ok) return;
-    try {
-      await removeFromWishlist(route.params.id);
-      isInWishlist.value = false;
-    } catch (e) {
-      error.value = e.message;
-    }
-  } else {
-    const ok = await confirm({
-      title: 'Añadir a la wishlist',
-      message: `¿Añadir «${series.value.name}» a tu wishlist?`,
-      confirmText: 'Añadir'
-    });
-    if (!ok) return;
-    try {
-      await addToWishlist(route.params.id);
-      isInWishlist.value = true;
-    } catch (e) {
-      error.value = e.message;
-    }
+  const quitando = isInWishlist.value;
+  const ok = await confirm(
+    quitando
+      ? {
+          title: 'Quitar de la wishlist',
+          message: `¿Quitar «${series.value.name}» de tu wishlist?`,
+          confirmText: 'Quitar',
+          danger: true
+        }
+      : {
+          title: 'Añadir a la wishlist',
+          message: `¿Añadir «${series.value.name}» a tu wishlist?`,
+          confirmText: 'Añadir'
+        }
+  );
+  if (!ok) return;
+  try {
+    if (quitando) await removeFromWishlist(route.params.id);
+    else await addToWishlist(route.params.id);
+    await collection.sync();
+  } catch (e) {
+    error.value = e.message;
   }
 }
 
+async function handleRefresh() {
+  refreshing.value = true;
+  error.value = null;
+  try {
+    const result = await refreshSeries(route.params.id);
+    info.value = result.message;
+    await collection.sync();
+  } catch (e) {
+    error.value = 'Error al actualizar: ' + e.message;
+  } finally {
+    refreshing.value = false;
+  }
+}
+
+// === Acciones que funcionan sin conexión ===
 async function handleToggleVolume(vol) {
   const owned = !!vol.owned;
   const ok = await confirm(
@@ -170,15 +168,9 @@ async function handleToggleVolume(vol) {
         }
   );
   if (!ok) return;
-  try {
-    if (owned) await unmarkVolumePurchased(route.params.id, vol.number);
-    else await markVolumePurchased(route.params.id, vol.number);
-    volumes.value = volumes.value.map((v) =>
-      v.number === vol.number ? { ...v, owned: owned ? 0 : 1 } : v
-    );
-  } catch (e) {
-    error.value = e.message;
-  }
+
+  if (owned) collection.desmarcarComprado(seriesId.value, vol.number);
+  else collection.marcarComprado(seriesId.value, vol.number);
 }
 
 async function handleLongPressUnreleased(vol) {
@@ -188,50 +180,33 @@ async function handleLongPressUnreleased(vol) {
     confirmText: 'Marcar como comprado'
   });
   if (!ok) return;
-  try {
-    await markVolumePurchased(route.params.id, vol.number);
-    volumes.value = volumes.value.map((v) =>
-      v.number === vol.number ? { ...v, owned: 1 } : v
-    );
-  } catch (e) {
-    error.value = e.message;
-  }
+  collection.marcarComprado(seriesId.value, vol.number);
 }
 
 async function handleMarkAll() {
-  const unpurchased = volumes.value
-    .filter((v) => !v.owned && v.is_released !== 0)
-    .map((v) => v.number);
+  const unpurchased = volumes.value.filter((v) => !v.owned && v.is_released !== 0).map((v) => v.number);
   if (unpurchased.length === 0) return;
+
   const ok = await confirm({
     title: 'Marcar todos',
     message: `¿Marcar ${unpurchased.length} tomos de «${series.value.name}» como comprados?`,
     confirmText: `Marcar ${unpurchased.length} tomos`
   });
   if (!ok) return;
-  try {
-    await markVolumesBulk(route.params.id, unpurchased);
-    volumes.value = volumes.value.map((v) =>
-      v.is_released !== 0 ? { ...v, owned: 1 } : v
-    );
-  } catch (e) {
-    error.value = e.message;
-  }
-}
 
-async function handleRefresh() {
-  refreshing.value = true;
-  error.value = null;
-  try {
-    const result = await refreshSeries(route.params.id);
-    series.value = result.series;
-    volumes.value = result.series.volumes || [];
-    info.value = result.message;
-  } catch (e) {
-    error.value = 'Error al actualizar: ' + e.message;
-  } finally {
-    refreshing.value = false;
+  // Con conexión va en una sola petición; sin ella, a la cola uno a uno, que
+  // es lo único posible pero también lo más lento de reproducir.
+  if (collection.online) {
+    try {
+      await markVolumesBulk(route.params.id, unpurchased);
+      await collection.sync();
+      return;
+    } catch (e) {
+      error.value = e.message;
+    }
   }
+
+  for (const n of unpurchased) collection.marcarComprado(seriesId.value, n);
 }
 
 const menuOptions = computed(() => [
@@ -240,8 +215,8 @@ const menuOptions = computed(() => [
   { label: 'Eliminar', action: handleDelete, isDanger: true }
 ]);
 
-watch(() => route.params.id, load);
-onMounted(load);
+watch(() => route.params.id, cargarRemota);
+onMounted(cargarRemota);
 </script>
 
 <template>
@@ -249,7 +224,7 @@ onMounted(load);
     <div class="flex items-center justify-between gap-3">
       <button class="btn-secondary" @click="router.back()">← Volver</button>
       <button
-        v-if="series"
+        v-if="series && collection.online"
         class="btn-secondary"
         :disabled="refreshing"
         @click="handleRefresh"
@@ -258,17 +233,15 @@ onMounted(load);
       </button>
     </div>
 
-    <div v-if="loading" class="surface p-8">
+    <div v-if="remoteLoading" class="surface p-8">
       <div class="h-6 w-1/2 skeleton rounded mb-4"></div>
       <div class="h-3 w-3/4 skeleton rounded mb-2"></div>
       <div class="h-3 w-2/3 skeleton rounded"></div>
     </div>
 
-    <div v-else-if="error && !series" class="surface p-4 text-sm text-red-400">
-      Error: {{ error }}
-    </div>
+    <NeedsConnection v-else-if="!series" accion="ver una serie que no tienes en tu colección" />
 
-    <template v-else-if="series">
+    <template v-else>
       <div v-if="info" class="surface p-4 text-sm text-emerald-400">{{ info }}</div>
       <div v-if="error" class="surface p-4 text-sm text-red-400">{{ error }}</div>
 
@@ -333,7 +306,7 @@ onMounted(load);
             />
           </div>
         </div>
-        <div v-else class="mt-6 flex flex-wrap gap-3">
+        <div v-else-if="collection.online" class="mt-6 flex flex-wrap gap-3">
           <button class="btn-primary" @click="handleFollow">Seguir serie</button>
           <button
             :class="isInWishlist ? 'btn-secondary' : 'btn-primary'"
@@ -342,6 +315,7 @@ onMounted(load);
             {{ isInWishlist ? 'En Wishlist ✓' : 'Añadir a Wishlist' }}
           </button>
         </div>
+        <NeedsConnection v-else class="mt-6" accion="seguir esta serie o tocar la wishlist" />
       </div>
 
       <!-- Tomos -->
