@@ -15,10 +15,15 @@ export async function fetchSnapshot({ timeoutMs = TIMEOUT_MS, fetchImpl = fetch 
   }
 }
 
-// Pide al navegador que se traiga las portadas de los pendientes para que el
-// service worker las guarde. Silencioso: si falla, no pasa nada.
-export async function precargarPortadas(urls) {
-  await Promise.allSettled(
-    urls.filter(Boolean).map((url) => fetch(url, { mode: 'no-cors', cache: 'force-cache' }))
-  );
+// Precarga las portadas de los pendientes para que el service worker las
+// guarde. Se cargan como <img> y no con fetch a propósito: la CSP que sirve
+// nginx tiene connect-src 'self', así que un fetch a static.listadomanga.com
+// se bloquea, mientras que como imagen entra por img-src, que sí lo permite.
+// La petición pasa igualmente por el service worker, que es lo que importa.
+export function precargarPortadas(urls) {
+  for (const url of urls.filter(Boolean)) {
+    const img = new Image();
+    img.decoding = 'async';
+    img.src = url;
+  }
 }
