@@ -78,3 +78,38 @@ nunca es ambiguo. Si el contenedor estaba parado el domingo, el resumen sale al
 arrancar siempre que siga siendo la misma semana.
 
 Usa el mismo `DISCORD_WEBHOOK_URL`; no hay configuración propia.
+
+## Uso sin conexión (PWA)
+
+La app guarda toda la colección en el móvil, así que funciona en una tienda sin
+VPN y sin cobertura: home con los tomos pendientes, tus series con su buscador,
+la ficha de cada serie y la wishlist.
+
+Instálala desde el navegador ("Añadir a pantalla de inicio") **entrando por
+https://manga.decafes.es**, estando en casa. Es importante usar siempre esa
+dirección y no la IP: cada origen guarda sus propios datos, y si instalas desde
+una y consultas desde otra te encontrarás la app vacía.
+
+Al abrirla pinta al instante con los datos guardados y, en paralelo, intenta
+sincronizar con el NAS con un timeout de 2 segundos: si no está accesible, ni te
+enteras.
+
+El chip de la barra superior indica el estado: `Sincronizado hace 2 h`,
+`Sin conexión · hace 3 días` o `1 cambio sin enviar`. Tocarlo fuerza la
+sincronización.
+
+Los tomos que marques como comprados sin conexión se guardan en una cola local y
+se envían al NAS en la siguiente sincronización. Buscar series nuevas, las
+estadísticas y modificar la wishlist sí requieren conexión, y lo indican.
+
+### Detalles técnicos
+
+- El snapshot completo (`GET /api/user/snapshot`) ronda los 740 KB y vive en
+  `localStorage`, junto a la cola de escrituras.
+- Las derivaciones (pendientes, progreso, búsqueda) son funciones puras en
+  `frontend/src/lib/`, probadas con `node --test`. Replican las fórmulas del SQL
+  del backend: si cambias una, cambia también la otra.
+- El service worker no intercepta `/api/`: los datos ya están en local y lo que
+  interesa es que la petición falle rápido, no que espere.
+- La CSP incluye `static.listadomanga.com` en `connect-src` porque el propio
+  service worker descarga las portadas con `fetch` para cachearlas.

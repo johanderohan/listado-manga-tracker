@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
+import SyncChip from './SyncChip.vue';
 
 const route = useRoute();
 const open = ref(false);
@@ -40,9 +41,12 @@ watch(() => route.fullPath, () => { open.value = false; });
         >
           {{ l.label }}
         </RouterLink>
+        <SyncChip class="ml-2" />
       </nav>
 
-      <!-- Botón hamburguesa (móvil) -->
+      <!-- Chip de estado + hamburguesa (móvil) -->
+      <div class="md:hidden flex items-center gap-2">
+        <SyncChip />
       <button
         class="md:hidden btn-secondary !px-2.5"
         :aria-expanded="open"
@@ -67,6 +71,7 @@ watch(() => route.fullPath, () => { open.value = false; });
           <line x1="6" y1="18" x2="18" y2="6" />
         </svg>
       </button>
+      </div>
     </div>
 
     <!-- Menú desplegable móvil -->
