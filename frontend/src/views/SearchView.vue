@@ -3,8 +3,11 @@ import { ref } from 'vue';
 import { useRouter, RouterLink } from 'vue-router';
 import { searchSeries, syncSeries } from '../services/api.js';
 import EmptyState from '../components/EmptyState.vue';
+import NeedsConnection from '../components/NeedsConnection.vue';
+import { useCollectionStore } from '../stores/collection.js';
 
 const router = useRouter();
+const collection = useCollectionStore();
 
 const query = ref('');
 const results = ref([]);
@@ -55,6 +58,9 @@ async function handleSync() {
 
 <template>
   <div class="space-y-6">
+    <!-- Buscar series nuevas consulta listadomanga a través del NAS. -->
+    <NeedsConnection v-if="!collection.online" accion="buscar series nuevas" />
+    <template v-else>
     <form class="flex flex-col sm:flex-row gap-3" @submit.prevent="handleSearch">
       <input
         v-model="query"
@@ -97,5 +103,6 @@ async function handleSync() {
         </RouterLink>
       </div>
     </div>
+    </template>
   </div>
 </template>

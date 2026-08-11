@@ -6,6 +6,7 @@ const router = Router();
 
 // Series del usuario
 router.get('/series', asyncHandler(ctrl.listUserSeries));
+router.get('/snapshot', asyncHandler(ctrl.getSnapshot));
 router.post('/series/:seriesId', asyncHandler(ctrl.followSeries));
 router.delete('/series/:seriesId', asyncHandler(ctrl.unfollowSeries));
 router.post('/series/:seriesId/discard', asyncHandler(ctrl.discardSeries));

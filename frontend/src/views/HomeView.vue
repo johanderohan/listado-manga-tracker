@@ -1,31 +1,26 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed } from 'vue';
 import { RouterLink } from 'vue-router';
-import {
-  getPendingVolumes,
-  getUpcomingVolumes,
-  getRecentVolumes,
-  markVolumePurchased
-} from '../services/api.js';
-import { useStatsStore } from '../stores/stats.js';
+import { useCollectionStore } from '../stores/collection.js';
 import { useConfirm } from '../composables/useConfirm.js';
 import Tabs from '../components/Tabs.vue';
 import PendingVolumeCard from '../components/PendingVolumeCard.vue';
 import RecentVolumeCard from '../components/RecentVolumeCard.vue';
 import EmptyState from '../components/EmptyState.vue';
 
-const stats = useStatsStore();
+const collection = useCollectionStore();
 const { confirm } = useConfirm();
 
-const pending = ref([]);
-const upcoming = ref([]);
-const recent = ref([]);
-const loading = ref(true);
-const error = ref(null);
 const activeTab = ref('pending');
 
+// Todo sale del snapshot local: la pantalla se pinta sin esperar a la red y se
+// actualiza sola cuando la sincronización trae datos nuevos.
+const pending = computed(() => collection.pending);
+const upcoming = computed(() => collection.upcoming);
+const recent = computed(() => collection.recent);
+
 const lastRefreshLabel = computed(() => {
-  const lr = stats.data?.lastRefresh;
+  const lr = collection.stats?.lastRefresh;
   if (!lr) return null;
   // SQLite guarda en UTC sin zona: añadir 'Z' para hora local correcta.
   return new Date(lr.replace(' ', 'T') + 'Z').toLocaleString('es-ES');
@@ -38,30 +33,11 @@ const tabs = computed(() => [
 ]);
 
 const statCards = computed(() => [
-  { label: 'Series', value: stats.data?.totalSeries ?? 0 },
-  { label: 'Tomos', value: stats.data?.totalVolumes ?? 0 },
-  { label: 'Completas', value: stats.data?.completedSeries ?? 0 },
-  { label: 'En Wishlist', value: stats.data?.wishlistCount ?? 0 }
+  { label: 'Series', value: collection.stats?.totalSeries ?? 0 },
+  { label: 'Tomos', value: collection.stats?.totalVolumes ?? 0 },
+  { label: 'Completas', value: collection.stats?.completedSeries ?? 0 },
+  { label: 'En Wishlist', value: collection.stats?.wishlistCount ?? 0 }
 ]);
-
-async function load() {
-  loading.value = true;
-  try {
-    const [p, u, r] = await Promise.all([
-      getPendingVolumes(),
-      getUpcomingVolumes(),
-      getRecentVolumes(50)
-    ]);
-    pending.value = p;
-    upcoming.value = u;
-    recent.value = r;
-    await stats.load();
-  } catch (e) {
-    error.value = e.message;
-  } finally {
-    loading.value = false;
-  }
-}
 
 async function handleBuy(vol) {
   const ok = await confirm({
@@ -70,20 +46,10 @@ async function handleBuy(vol) {
     confirmText: 'Sí, comprado'
   });
   if (!ok) return;
-  try {
-    await markVolumePurchased(vol.series_id, vol.number);
-    pending.value = pending.value.filter(
-      (v) => !(v.series_id === vol.series_id && v.number === vol.number)
-    );
-    stats.bumpVolumes(1);
-    // Refrescar "Últimos añadidos" para que aparezca el recién comprado.
-    recent.value = await getRecentVolumes(50);
-  } catch (e) {
-    error.value = e.message;
-  }
-}
 
-onMounted(load);
+  // Se aplica en local y se encola: funciona igual con y sin conexión.
+  collection.marcarComprado(vol.series_id, vol.number);
+}
 </script>
 
 <template>
@@ -101,17 +67,12 @@ onMounted(load);
 
     <Tabs v-model="activeTab" :tabs="tabs" />
 
-    <div v-if="loading" class="grid-covers">
-      <div v-for="i in 6" :key="i" class="card">
-        <div class="aspect-[2/3] skeleton"></div>
-        <div class="p-3 space-y-2">
-          <div class="h-3 skeleton rounded"></div>
-          <div class="h-3 w-2/3 skeleton rounded"></div>
-        </div>
-      </div>
-    </div>
-
-    <div v-else-if="error" class="surface p-4 text-sm text-red-400">Error: {{ error }}</div>
+    <EmptyState
+      v-if="!collection.hasData"
+      icon="book"
+      title="Sin datos descargados todavía"
+      description="Conéctate a la VPN o a la wifi de casa y toca el chip de sincronizar"
+    />
 
     <template v-else>
       <!-- Tomos pendientes -->

@@ -532,3 +532,41 @@ export function getStatistics(req, res) {
     }
   });
 }
+
+// === SNAPSHOT OFFLINE ===
+
+// Series que el móvil necesita: las que sigues, las descartadas y las de la
+// wishlist. Estas últimas pueden no estar en user_series, y sin ellas la
+// wishlist se vería vacía sin conexión.
+const SERIES_EN_SNAPSHOT = `
+  SELECT series_id FROM user_series
+  UNION
+  SELECT series_id FROM wishlist
+`;
+
+// GET /api/user/snapshot — toda la colección en una petición, para el modo
+// offline del móvil. Ronda los 720 KB con la colección actual.
+export function getSnapshot(req, res) {
+  const series = db.prepare(`
+    SELECT s.id, s.name, s.original_name, s.author, s.artist, s.editorial_es,
+           s.total_volumes, s.released_volumes, s.is_complete,
+           s.reading_direction, s.synopsis, s.url, us.status
+    FROM series s
+    LEFT JOIN user_series us ON us.series_id = s.id
+    WHERE s.id IN (${SERIES_EN_SNAPSHOT})
+    ORDER BY s.name
+  `).all();
+
+  const volumes = db.prepare(`
+    SELECT v.series_id, v.number, v.price, v.release_date, v.is_released, v.cover_url
+    FROM volumes v
+    WHERE v.series_id IN (${SERIES_EN_SNAPSHOT})
+    ORDER BY v.series_id, v.number
+  `).all();
+
+  const owned = db.prepare('SELECT series_id, volume_number, purchased_at FROM user_volumes').all();
+  const wishlist = db.prepare('SELECT series_id, notes FROM wishlist').all();
+  const lastRefresh = db.prepare("SELECT value FROM app_config WHERE key = 'last_refresh'").get()?.value ?? null;
+
+  res.json({ generatedAt: new Date().toISOString(), lastRefresh, series, volumes, owned, wishlist });
+}

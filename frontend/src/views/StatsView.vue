@@ -3,6 +3,10 @@ import { ref, computed, onMounted } from 'vue';
 import { RouterLink } from 'vue-router';
 import { getStatistics } from '../services/api.js';
 import EmptyState from '../components/EmptyState.vue';
+import NeedsConnection from '../components/NeedsConnection.vue';
+import { useCollectionStore } from '../stores/collection.js';
+
+const collection = useCollectionStore();
 
 const data = ref(null);
 const loading = ref(true);
@@ -147,6 +151,10 @@ const topSeries = computed(() =>
 <template>
   <div class="space-y-8">
     <h1 class="display text-3xl tracking-wide">Estadísticas</h1>
+
+    <!-- Se calculan en el NAS: no hay versión offline. -->
+    <NeedsConnection v-if="!collection.online" accion="ver las estadísticas" />
+    <template v-else>
 
     <div v-if="loading" class="grid grid-cols-2 md:grid-cols-4 gap-3">
       <div v-for="i in 8" :key="i" class="surface p-4 h-20 skeleton"></div>
@@ -392,6 +400,7 @@ const topSeries = computed(() =>
           </div>
         </section>
       </div>
+    </template>
     </template>
   </div>
 </template>
