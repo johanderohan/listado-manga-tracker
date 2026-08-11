@@ -10,6 +10,7 @@
     "test": "DB_PATH=:memory: DISCORD_WEBHOOK_URL= node --test test/*.test.js",
     "test:watch": "DB_PATH=:memory: DISCORD_WEBHOOK_URL= node --test --watch test/*.test.js",
     "scrape": "node src/scripts/scrape.js",
+    "notify:test": "node src/scripts/notify-test.js",
     "export": "node src/scripts/export-collection.js",
     "export:summary": "node src/scripts/export-collection-summary.js"
   },
