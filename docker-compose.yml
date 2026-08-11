@@ -16,6 +16,11 @@ services:
       - EXPORTS_PATH=/app/exports
       # El cron usa hora local (07:00); fijar la zona es crítico.
       - TZ=Europe/Madrid
+      # El valor real vive en .env (fuera de git): este fichero está publicado
+      # en GitHub y quien tenga la URL puede publicar en el canal.
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
+      - DISCORD_SEND_DELAY_MS=${DISCORD_SEND_DELAY_MS:-1500}
+      - DISCORD_MAX_EMBEDS_PER_RUN=${DISCORD_MAX_EMBEDS_PER_RUN:-30}
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3001/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 15s

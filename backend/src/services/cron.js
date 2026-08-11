@@ -6,6 +6,7 @@ import {
   countVolumes,
   setLastRefresh
 } from './seriesSync.service.js';
+import { notifyNewReleases } from './notifications/index.js';
 
 // Hora de actualización diaria (7:00 AM)
 const UPDATE_HOUR = 7;
@@ -36,10 +37,17 @@ function sleep(ms) {
 async function updateAllUserSeries() {
   console.log(`[CRON] Iniciando actualización de series - ${new Date().toISOString()}`);
 
+  // Se refrescan todas las series del usuario (siguiendo y descartadas, como
+  // hasta ahora) más las de la wishlist, que hasta ahora no se actualizaban
+  // nunca porque el bucle solo miraba user_series.
   const userSeries = db.prepare(`
-    SELECT us.series_id, s.name
+    SELECT us.series_id AS series_id, s.name AS name
     FROM user_series us
     LEFT JOIN series s ON s.id = us.series_id
+    UNION
+    SELECT w.series_id AS series_id, s.name AS name
+    FROM wishlist w
+    LEFT JOIN series s ON s.id = w.series_id
   `).all();
 
   if (userSeries.length === 0) {
@@ -86,6 +94,8 @@ async function updateAllUserSeries() {
 
   // Guardar fecha de última actualización
   setLastRefresh();
+
+  await notifyNewReleases();
 
   console.log(`[CRON] Actualización completada: ${updated} series, ${newVolumes} tomos nuevos, ${errors} errores`);
 }
