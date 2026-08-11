@@ -94,9 +94,17 @@ Al abrirla pinta al instante con los datos guardados y, en paralelo, intenta
 sincronizar con el NAS con un timeout de 2 segundos: si no está accesible, ni te
 enteras.
 
-El chip de la barra superior indica el estado: `Sincronizado hace 2 h`,
-`Sin conexión · hace 3 días` o `1 cambio sin enviar`. Tocarlo fuerza la
-sincronización.
+En la barra superior hay un icono de nube discreto que dice de un vistazo si te
+puedes fiar de lo que ves:
+
+| Icono | Significado |
+|---|---|
+| Nube con ✓, verde suave | Sincronizado hace menos de una hora |
+| Nube con **!**, apagada | Sin conexión, o datos de hace más de una hora |
+| Nube con ↑ y un número, ámbar | Cambios hechos sin conexión pendientes de enviar |
+
+El detalle exacto ("Sin conexión · Última sincronización hace 3 h") está en el
+tooltip, y tocarlo fuerza la sincronización.
 
 Los tomos que marques como comprados sin conexión se guardan en una cola local y
 se envían al NAS en la siguiente sincronización. Buscar series nuevas, las
