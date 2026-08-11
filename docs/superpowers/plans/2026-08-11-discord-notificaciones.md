@@ -80,9 +80,13 @@
 En el bloque `"scripts"`, junto a los existentes:
 
 ```json
-    "test": "DB_PATH=:memory: DISCORD_WEBHOOK_URL= node --test test/",
-    "test:watch": "DB_PATH=:memory: DISCORD_WEBHOOK_URL= node --test --watch test/",
+    "test": "DB_PATH=:memory: DISCORD_WEBHOOK_URL= node --test test/*.test.js",
+    "test:watch": "DB_PATH=:memory: DISCORD_WEBHOOK_URL= node --test --watch test/*.test.js",
 ```
+
+Se pasa un glob y no el directorio `test/`: con el directorio, el runner
+intenta cargarlo como módulo y falla. El glob tiene además la ventaja de no
+ejecutar `test/helpers/db.js` como si fuera un fichero de tests.
 
 `DB_PATH=:memory:` es obligatorio: `src/models/database.js` abre la conexión al importarse, y sin esa variable los tests crearían un fichero `data.db` suelto.
 

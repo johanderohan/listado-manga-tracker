@@ -7,6 +7,8 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
+    "test": "DB_PATH=:memory: DISCORD_WEBHOOK_URL= node --test test/*.test.js",
+    "test:watch": "DB_PATH=:memory: DISCORD_WEBHOOK_URL= node --test --watch test/*.test.js",
     "scrape": "node src/scripts/scrape.js",
     "export": "node src/scripts/export-collection.js",
     "export:summary": "node src/scripts/export-collection-summary.js"
@@ -17,5 +19,8 @@
     "cors": "^2.8.5",
     "express": "^4.18.2",
     "helmet": "^8.0.0"
+  },
+  "allowScripts": {
+    "better-sqlite3@11.10.0": true
   }
 }
