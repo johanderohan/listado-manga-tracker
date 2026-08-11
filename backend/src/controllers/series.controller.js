@@ -7,6 +7,7 @@ import {
   countVolumes,
   setLastRefresh
 } from '../services/seriesSync.service.js';
+import { notifyNewReleasesInBackground } from '../services/notifications/index.js';
 
 // GET /api/series — series cacheadas en la BD local (con búsqueda)
 export function listSeries(req, res) {
@@ -97,6 +98,8 @@ export async function refreshSeries(req, res) {
 
   const series = db.prepare('SELECT * FROM series WHERE id = ?').get(id);
 
+  notifyNewReleasesInBackground();
+
   res.json({
     message: `Serie actualizada: ${scrapedData.volumes.length} tomos encontrados`,
     series: { ...series, volumes }
@@ -135,6 +138,8 @@ export async function refreshAllSeries(req, res) {
   const totalNew = results.reduce((sum, r) => sum + (r.newVolumes || 0), 0);
 
   setLastRefresh();
+
+  notifyNewReleasesInBackground();
 
   res.json({
     message: `Actualizadas ${results.length} series. ${totalNew} tomos nuevos encontrados.`,

@@ -1,5 +1,6 @@
 import db from '../config/db.js';
 import { toInt, toIntArray, toIntInRange } from '../middleware/sanitize.js';
+import { markSeriesAsBaseline } from '../services/notifications/index.js';
 
 const MONTH_ORDER = {
   enero: '01', febrero: '02', marzo: '03', abril: '04',
@@ -46,6 +47,10 @@ export function followSeries(req, res) {
     VALUES (?, 'following')
   `).run(seriesId);
 
+  // Los tomos que ya tiene esa serie no son novedad: se marcan sin avisar para
+  // que seguir una serie de 40 tomos no dispare 40 tarjetas.
+  markSeriesAsBaseline(seriesId);
+
   res.json({ message: 'Serie añadida' });
 }
 
@@ -79,6 +84,8 @@ export function refollowSeries(req, res) {
     SET status = 'following'
     WHERE series_id = ?
   `).run(seriesId);
+
+  markSeriesAsBaseline(seriesId);
 
   res.json({ message: 'Serie movida a siguiendo' });
 }
@@ -261,6 +268,8 @@ export function addToWishlist(req, res) {
     INSERT OR REPLACE INTO wishlist (series_id, notes)
     VALUES (?, ?)
   `).run(seriesId, notes || null);
+
+  markSeriesAsBaseline(seriesId);
 
   res.json({ message: 'Añadido a wishlist' });
 }
