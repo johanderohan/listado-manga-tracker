@@ -54,8 +54,11 @@ sola petición:
 ```json
 {
   "generatedAt": "2026-08-11T18:00:00.000Z",
-  "series":  [{ "id", "name", "author", "editorial_es", "total_volumes",
-                "released_volumes", "is_complete", "status" }],
+  "lastRefresh": "2026-08-11 07:04:12",
+  "series":  [{ "id", "name", "original_name", "author", "artist",
+                "editorial_es", "total_volumes", "released_volumes",
+                "is_complete", "reading_direction", "synopsis", "url",
+                "status" }],
   "volumes": [{ "series_id", "number", "price", "release_date",
                 "is_released", "cover_url" }],
   "owned":   [{ "series_id", "volume_number", "purchased_at" }],
@@ -63,15 +66,20 @@ sola petición:
 }
 ```
 
+La lista de campos de `series` no es arbitraria: son exactamente los que pinta
+la ficha de serie (`original_name`, `artist`, `reading_direction`, `synopsis`,
+`url`), que está dentro del alcance offline. `lastRefresh` alimenta la etiqueta
+de "última actualización" de la home.
+
 Incluye las series con `status` `following` **y** `discarded`, para que la
 pestaña de descartadas siga funcionando, y los tomos de ambas.
 
 `purchased_at` es imprescindible: la home ordena los tomos recientes por fecha
 de compra, y sin ese campo esa sección no se puede calcular en local.
 
-Medido sobre la base real: 315 series, 1.780 tomos y 1.586 comprados dan **398
-KB** de JSON, que con `purchased_at` se quedan en unos 450 KB. Cabe de sobra en
-`localStorage`, cuyo límite ronda los 5 MB.
+Medido sobre la base real con todos esos campos: 328 series (seguidas y
+descartadas), 2.131 tomos y 1.586 comprados dan **720 KB** de JSON, de los que
+141 KB son sinopsis. Es el 14% del límite de `localStorage`, que ronda los 5 MB.
 
 ### Derivaciones que hoy calcula el backend
 
@@ -87,6 +95,16 @@ comportamiento:
 - **Tomos pendientes**: los de series seguidas, con `is_released = 1`, que no
   estén entre los comprados.
 - **Próximos lanzamientos**: los de series seguidas con `is_released = 0`.
+- **Contadores de la home**: `totalSeries` cuenta todas las series del usuario
+  incluidas las descartadas; `totalVolumes` son los tomos comprados;
+  `completedSeries` son las series con `is_complete = 1` cuyos tomos comprados
+  igualan a `total_volumes`; `wishlistCount` es el tamaño de la wishlist.
+
+Las tarjetas esperan nombres de campo concretos, que las derivaciones deben
+respetar: los tomos llevan `series_id`, `number`, `series_name`, `cover_url`,
+`series_cover`, `price`, `release_date` y `purchased_at`; las series llevan `id`,
+`name`, `cover_url`, `is_complete`, `owned_volumes`, `total_volumes` y
+`progress`.
 
 ### Almacenamiento
 
