@@ -7,6 +7,8 @@ import {
   setLastRefresh
 } from './seriesSync.service.js';
 import { notifyNewReleases } from './notifications/index.js';
+import { sendWeeklyDigest } from './calendar/index.js';
+import { msUntilNextSunday, isCatchUpWindow } from './calendar/week.js';
 
 // Hora de actualización diaria (7:00 AM)
 const UPDATE_HOUR = 7;
@@ -113,12 +115,34 @@ function scheduleNextRun() {
   }, msUntilNext);
 }
 
+// Resumen semanal del calendario: domingos a las 19:00.
+const DIGEST_HOUR = 19;
+
+function scheduleWeeklyDigest() {
+  const ms = msUntilNextSunday(new Date(), DIGEST_HOUR);
+  console.log(`[SEMANAL] Próximo resumen: ${new Date(Date.now() + ms).toLocaleString('es-ES')}`);
+
+  setTimeout(async () => {
+    await sendWeeklyDigest();
+    scheduleWeeklyDigest();
+  }, ms);
+}
+
 export function startCronJob() {
   console.log('[CRON] Servicio de actualización iniciado');
   console.log(`[CRON] Actualización diaria programada a las ${UPDATE_HOUR}:${String(UPDATE_MINUTE).padStart(2, '0')}`);
 
   // Programar la primera ejecución a las 7 AM
   scheduleNextRun();
+
+  scheduleWeeklyDigest();
+
+  // Si el contenedor estaba parado el domingo a las 19:00, el resumen sale
+  // ahora, siempre que siga siendo la misma semana. sendWeeklyDigest ya se
+  // protege con la marca de app_config, así que no puede duplicar.
+  if (isCatchUpWindow(new Date())) {
+    sendWeeklyDigest().catch(err => console.error(`[SEMANAL] ${err.message}`));
+  }
 }
 
 // Función para ejecutar actualización manual (usada por el endpoint)
